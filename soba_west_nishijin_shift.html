@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>シフト管理 — 生そばウエスト 西新店</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<style>
+:root{
+  --accent:#1D9E75;--accent-dark:#0F6E56;--accent-light:#E1F5EE;
+  --bg:#f8f8f6;--surface:#ffffff;--surface2:#f4f4f1;--surface3:#ebebE7;
+  --border:#e0dfd8;--border2:#ccccc5;
+  --text:#1a1a18;--text2:#5c5c58;--text3:#9a9a94;
+  --prep-bg:#E6F1FB;--prep:#0C447C;
+  --lunch-bg:#FAEEDA;--lunch:#633806;
+  --idle-bg:#F1EFE8;--idle:#444441;
+  --dinner-bg:#FAECE7;--dinner:#712B13;
+  --close-bg:#EEEDFE;--close:#3C3489;
+  --day-on:#378ADD;--day-on-dark:#185FA5;
+  --red:#A32D2D;--red-bg:#FCEBEB;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN','Hiragino Sans','Meiryo',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;min-height:100vh}
+
+/* ─── LAYOUT ─── */
+.app{display:flex;height:100vh;overflow:hidden}
+.rail{width:56px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:2px;flex-shrink:0;z-index:10}
+.rail-logo{width:34px;height:34px;background:var(--accent);border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.rail-logo i{font-size:19px;color:#fff}
+.rail-btn{width:38px;height:38px;border-radius:9px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);position:relative;transition:all .15s}
+.rail-btn:hover{background:var(--surface2);color:var(--text2)}
+.rail-btn.active{background:var(--accent-light);color:var(--accent)}
+.rail-btn i{font-size:19px}
+.tooltip{position:absolute;left:46px;top:50%;transform:translateY(-50%);background:var(--text);color:#fff;border-radius:6px;padding:4px 9px;font-size:11px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:100}
+.rail-btn:hover .tooltip{opacity:1}
+.rail-sep{width:28px;height:1px;background:var(--border);margin:4px 0}
+
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.topbar{height:50px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 22px;gap:12px;flex-shrink:0}
+.topbar-title{font-size:14px;font-weight:600;flex:1;letter-spacing:-.01em}
+.topbar-sub{font-size:11px;color:var(--text3);white-space:nowrap}
+.topbar-acts{display:flex;gap:6px}
+.content{flex:1;overflow-y:auto;padding:22px;background:var(--bg)}
+.pg{display:none}.pg.on{display:block}
+
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;font-size:12px;font-weight:500;border-radius:8px;border:1px solid var(--border2);background:var(--surface);cursor:pointer;color:var(--text);font-family:inherit;transition:all .12s;white-space:nowrap;letter-spacing:-.01em}
+.btn:hover{background:var(--surface2);border-color:var(--border2)}
+.btn:active{transform:scale(.98)}
+.btn.p{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.p:hover{background:var(--accent-dark);border-color:var(--accent-dark)}
+.btn.danger{color:var(--red);border-color:#F7C1C1;background:var(--red-bg)}
+.btn.danger:hover{background:#F7C1C1}
+.btn.line{background:#06C755;color:#fff;border-color:#06C755}
+.btn.line:hover{background:#059C44}
+.btn i{font-size:14px}
+
+/* ─── CARDS ─── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px}
+.card-title{font-size:13px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:6px;letter-spacing:-.01em}
+.card-title i{font-size:16px;color:var(--accent)}
+
+/* ─── STATS ─── */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.sc .sl{font-size:10px;color:var(--text3);letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+.sc .sv{font-size:24px;font-weight:700;line-height:1.1;margin-top:2px;color:var(--text)}
+.sc .su{font-size:11px;color:var(--text3);margin-top:1px}
+
+/* ─── STAFF GRID ─── */
+.staff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.scard{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px;cursor:pointer;transition:all .15s}
+.scard:hover{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+.av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.sn{font-size:13px;font-weight:600;letter-spacing:-.01em}
+.sr{font-size:11px;color:var(--text3);margin-top:1px}
+.tgs{display:flex;flex-wrap:wrap;gap:3px;margin-top:8px}
+.tg{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600}
+.tg.kama{background:#E1F5EE;color:#085041}
+.tg.fryer{background:#FAEEDA;color:#633806}
+.tg.conro{background:#FAECE7;color:#993C1D}
+.tg.dishup{background:#EEEDFE;color:#3C3489}
+.tg.dishwash{background:#E6F1FB;color:#0C447C}
+.tg.cashier{background:#EAF3DE;color:#27500A}
+.tg.hall{background:#FBEAF0;color:#72243E}
+.tg.leader{background:var(--accent);color:#fff}
+.tg.abil{background:var(--surface3);color:var(--text2);font-style:italic}
+.abil-sec{margin-top:7px;padding-top:7px;border-top:1px solid var(--border)}
+.abil-lbl{font-size:9px;color:var(--text3);letter-spacing:.04em;font-weight:600;margin-bottom:4px}
+
+/* ─── FORM ─── */
+.fr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.fr label{font-size:12px;color:var(--text2);flex:1;min-width:0}
+.fr input[type=number],.fr input[type=text],.fr input[type=time],.fr select{padding:6px 9px;font-size:12px;border:1px solid var(--border2);border-radius:7px;background:var(--surface);color:var(--text);font-family:inherit;width:96px;transition:border-color .12s}
+.fr input:focus,.fr select:focus{outline:none;border-color:var(--accent)}
+.fr .u{font-size:11px;color:var(--text3);white-space:nowrap}
+.ck{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:var(--text)}
+.ck input{accent-color:var(--accent);width:14px;height:14px}
+.ckg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+
+/* ─── DAY BUTTONS ─── */
+.day-row{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.db{padding:7px 3px;border:1.5px solid var(--border2);border-radius:7px;font-size:11px;font-weight:600;text-align:center;cursor:pointer;color:var(--text3);background:var(--surface2);font-family:inherit;transition:all .15s;user-select:none}
+.db.on{background:var(--day-on);color:#fff;border-color:var(--day-on-dark)}
+.db:hover:not(.on){background:var(--surface);color:var(--text2)}
+
+/* ─── COND TABS ─── */
+.cond-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:18px;gap:0}
+.ctab{padding:9px 16px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--text3);font-family:inherit;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.ctab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.cpanel{display:none}.cpanel.on{display:block}
+
+/* ─── TIME BAND ─── */
+.time-band{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+.tb-card{border-radius:10px;border:1px solid var(--border);padding:13px;background:var(--surface)}
+.tb-label{font-size:11px;font-weight:700;margin-bottom:9px;display:flex;align-items:center;gap:5px;letter-spacing:-.01em}
+.tb-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.tb-inp{width:100%;padding:6px 8px;font-size:12px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);margin-bottom:5px;font-family:inherit}
+.tb-inp:focus{outline:none;border-color:var(--accent)}
+.tb-note{font-size:10px;color:var(--text3)}
+
+/* ─── POS TABLE ─── */
+.pos-wrap{overflow-x:auto}
+.pos-tbl{width:100%;border-collapse:collapse;font-size:11px;min-width:700px}
+.pos-tbl th{font-size:10px;color:var(--text3);font-weight:600;padding:6px 7px;text-align:center;border-bottom:1px solid var(--border);background:var(--surface2);letter-spacing:.02em}
+.pos-tbl th:first-child{text-align:left;min-width:110px}
+.pos-tbl td{padding:5px 7px;border-bottom:1px solid var(--border);text-align:center}
+.pos-tbl td:first-child{text-align:left;color:var(--text2)}
+.pos-tbl input{width:42px;padding:4px;font-size:11px;border:1px solid var(--border2);border-radius:5px;text-align:center;background:var(--surface);color:var(--text);font-family:inherit}
+.pos-tbl tr:last-child td{border-bottom:none}
+.pos-tbl .th-we{background:#E1F5EE;color:#085041}
+
+/* ─── SHIFT ─── */
+.shift-ctl{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.wk-nav{display:flex;align-items:center;gap:6px}
+.wk-nav button{padding:6px 10px;border:1px solid var(--border2);border-radius:7px;background:var(--surface);cursor:pointer;color:var(--text);font-family:inherit;font-size:12px;transition:background .12s}
+.wk-nav button:hover{background:var(--surface2)}
+.wl{font-size:13px;font-weight:600;min-width:158px;text-align:center;letter-spacing:-.01em}
+.shift-wrap{border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:calc(100vh - 220px)}
+.stbl{width:100%;border-collapse:collapse;min-width:740px}
+.stbl th{background:var(--surface2);padding:8px 9px;text-align:left;font-weight:600;border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);position:sticky;top:0;z-index:2;white-space:nowrap;letter-spacing:.03em}
+.stbl td{padding:6px 9px;border-bottom:1px solid var(--border);vertical-align:middle}
+.stbl tr:last-child td{border-bottom:none}
+.stbl tbody tr:hover td{background:var(--surface2)}
+.stbl .sticky-col{position:sticky;left:0;z-index:1;background:var(--surface)}
+.stbl .sticky-head{position:sticky;left:0;z-index:3;background:var(--surface2)}
+.sb{border-radius:5px;padding:3px 8px;font-size:10px;font-weight:600;white-space:nowrap;display:inline-block;letter-spacing:-.01em}
+.sb.prep{background:var(--prep-bg);color:var(--prep)}
+.sb.lunch{background:var(--lunch-bg);color:var(--lunch)}
+.sb.idle{background:var(--idle-bg);color:var(--idle)}
+.sb.dinner{background:var(--dinner-bg);color:var(--dinner)}
+.sb.close{background:var(--close-bg);color:var(--close)}
+.sb.off{background:var(--surface2);color:var(--text3)}
+.hint{font-size:12px;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:none;align-items:center;gap:8px;font-weight:500}
+.hint.ok{background:#E1F5EE;color:#085041;display:flex}
+.hint.warn{background:var(--red-bg);color:var(--red);display:flex}
+
+/* ─── PAYROLL ─── */
+.pay-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.pc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px}
+.pc .pl{font-size:10px;color:var(--text3);font-weight:600;letter-spacing:.04em}
+.pc .pv{font-size:22px;font-weight:700;margin-top:3px;letter-spacing:-.02em}
+.ptbl{width:100%;border-collapse:collapse;font-size:12px}
+.ptbl th{background:var(--surface2);padding:9px 11px;text-align:left;font-weight:600;border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);letter-spacing:.03em}
+.ptbl td{padding:8px 11px;border-bottom:1px solid var(--border)}
+.ptbl tbody tr:hover td{background:var(--surface2)}
+.pay-bar-wrap{height:4px;background:var(--surface3);border-radius:2px;margin-top:3px}
+.pay-bar{height:4px;border-radius:2px;background:var(--accent)}
+
+/* ─── LINE ─── */
+.line-st{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;margin-bottom:12px}
+.line-st.conn{background:#E1F5EE;color:#085041}
+.line-st.disc{background:var(--red-bg);color:var(--red)}
+.notif-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:9px;font-size:12px;margin-bottom:6px;background:var(--surface)}
+.notif-item strong{font-weight:600}
+.tog{width:38px;height:22px;border-radius:11px;background:var(--border2);position:relative;cursor:pointer;transition:background .2s;border:none;flex-shrink:0}
+.tog.on{background:var(--accent)}
+.tog::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.tog.on::after{left:18px}
+.prev-box{background:var(--surface2);border-radius:9px;padding:12px 14px;font-size:12px;line-height:1.75;white-space:pre-wrap;font-family:'Courier New',monospace;border:1px solid var(--border);margin-top:9px;color:var(--text2)}
+
+/* ─── MODAL ─── */
+.backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
+.backdrop.open{display:flex}
+.modal{background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:22px;width:460px;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 8px 40px rgba(0,0,0,.18)}
+.modal h2{font-size:16px;font-weight:700;margin-bottom:16px;letter-spacing:-.02em}
+.modal .xb{position:absolute;top:16px;right:16px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;line-height:1;transition:color .12s}
+.modal .xb:hover{color:var(--text)}
+.mf{margin-bottom:12px}
+.mf>label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;letter-spacing:.02em}
+.mf input,.mf select{width:100%;padding:8px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;transition:border-color .12s}
+.mf input:focus,.mf select:focus{outline:none;border-color:var(--accent)}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.macts{display:flex;gap:7px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
+
+/* ─── STORE INFO BANNER ─── */
+.store-banner{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.store-banner .info{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px}
+.store-banner .info i{font-size:13px}
+.store-banner .info strong{color:var(--text2);font-weight:600}
+
+/* ─── SECTION DIVIDER ─── */
+.sec-div{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;margin:14px 0 7px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:600px){
+  .rail{width:48px}.rail-btn{width:34px;height:34px}.rail-logo{width:30px;height:30px}
+  .stat-row{grid-template-columns:1fr 1fr}.time-band{grid-template-columns:1fr 1fr}
+  .content{padding:14px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- RAIL NAV -->
+  <div class="rail">
+    <div class="rail-logo"><i class="ti ti-bowl"></i></div>
+    <button class="rail-btn active" data-pg="staff" onclick="go('staff')" aria-label="スタッフ">
+      <i class="ti ti-users"></i><span class="tooltip">スタッフ</span>
+    </button>
+    <button class="rail-btn" data-pg="cond" onclick="go('cond')" aria-label="条件設定">
+      <i class="ti ti-settings"></i><span class="tooltip">条件設定</span>
+    </button>
+    <div class="rail-sep"></div>
+    <button class="rail-btn" data-pg="shift" onclick="go('shift')" aria-label="シフト表">
+      <i class="ti ti-calendar"></i><span class="tooltip">シフト表</span>
+    </button>
+    <button class="rail-btn" data-pg="pay" onclick="go('pay')" aria-label="給与集計">
+      <i class="ti ti-coin"></i><span class="tooltip">給与集計</span>
+    </button>
+    <div class="rail-sep"></div>
+    <button class="rail-btn" data-pg="line" onclick="go('line')" aria-label="LINE通知">
+      <i class="ti ti-message-circle"></i><span class="tooltip">LINE通知</span>
+    </button>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">スタッフ管理</div>
+        <div class="topbar-sub">生そばウエスト 西新店</div>
+      </div>
+      <div class="topbar-acts" id="topbar-acts">
+        <button class="btn p" onclick="openAdd()"><i class="ti ti-plus"></i>スタッフ追加</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── STAFF ── -->
+      <div class="pg on" id="pg-staff">
+        <div class="store-banner">
+          <div class="info"><i class="ti ti-map-pin"></i><strong>福岡県福岡市早良区城西3丁目21−27</strong></div>
+          <div class="info"><i class="ti ti-phone"></i><strong>092-836-7440</strong></div>
+          <div class="info"><i class="ti ti-clock"></i><strong>11:00〜22:00</strong>（OS 21:30）</div>
+        </div>
+        <div class="stat-row">
+          <div class="sc"><div class="sl">総スタッフ</div><div class="sv" id="st0">0</div><div class="su">名</div></div>
+          <div class="sc"><div class="sl">リーダー</div><div class="sv" id="st1">0</div><div class="su">名</div></div>
+          <div class="sc"><div class="sl">厨房担当</div><div class="sv" id="st2">0</div><div class="su">名</div></div>
+          <div class="sc"><div class="sl">蕎麦練り可</div><div class="sv" id="st3">0</div><div class="su">名</div></div>
+        </div>
+        <div class="staff-grid" id="sgrid"></div>
+      </div>
+
+      <!-- ── CONDITIONS ── -->
+      <div class="pg" id="pg-cond">
+        <div class="cond-tabs">
+          <button class="ctab on" onclick="ctab('bands')">時間帯設定</button>
+          <button class="ctab" onclick="ctab('labor')">労働時間</button>
+          <button class="ctab" onclick="ctab('pos')">ポジション人数</button>
+          <button class="ctab" onclick="ctab('wage')">時給</button>
+        </div>
+
+        <!-- 時間帯 -->
+        <div class="cpanel on" id="cp-bands">
+          <p style="font-size:12px;color:var(--text3);margin-bottom:14px">各シフト帯の開始・終了時間を設定してください</p>
+          <div class="time-band">
+            <div class="tb-card">
+              <div class="tb-label"><span class="tb-dot" style="background:#378ADD"></span><span style="color:#0C447C">朝準備</span></div>
+              <input class="tb-inp" id="b-prep-s" type="time" value="08:00">
+              <input class="tb-inp" id="b-prep-e" type="time" value="11:00">
+              <div class="tb-note">開店準備・仕込み</div>
+            </div>
+            <div class="tb-card">
+              <div class="tb-label"><span class="tb-dot" style="background:#BA7517"></span><span style="color:#633806">ランチピーク</span></div>
+              <input class="tb-inp" id="b-lunch-s" type="time" value="11:00">
+              <input class="tb-inp" id="b-lunch-e" type="time" value="14:00">
+              <div class="tb-note">最繁忙時間帯</div>
+            </div>
+            <div class="tb-card">
+              <div class="tb-label"><span class="tb-dot" style="background:#888780"></span><span style="color:#444441">アイドル</span></div>
+              <input class="tb-inp" id="b-idle-s" type="time" value="14:00">
+              <input class="tb-inp" id="b-idle-e" type="time" value="17:00">
+              <div class="tb-note">閑散・清掃・仕込み</div>
+            </div>
+            <div class="tb-card">
+              <div class="tb-label"><span class="tb-dot" style="background:#D85A30"></span><span style="color:#712B13">ディナーピーク</span></div>
+              <input class="tb-inp" id="b-dinner-s" type="time" value="17:00">
+              <input class="tb-inp" id="b-dinner-e" type="time" value="21:00">
+              <div class="tb-note">夕方繁忙時間帯</div>
+            </div>
+            <div class="tb-card">
+              <div class="tb-label"><span class="tb-dot" style="background:#534AB7"></span><span style="color:#3C3489">閉店作業</span></div>
+              <input class="tb-inp" id="b-close-s" type="time" value="21:00">
+              <input class="tb-inp" id="b-close-e" type="time" value="23:00">
+              <div class="tb-note">片付け・締め作業</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-calendar-week"></i>週末判定曜日</div>
+            <p style="font-size:11px;color:var(--text3);margin-bottom:10px">週末扱いにする曜日 — 青 = 週末（人数設定の週末列に適用）</p>
+            <div class="day-row" id="we-days">
+              <button type="button" class="db" data-d="0">月</button>
+              <button type="button" class="db" data-d="1">火</button>
+              <button type="button" class="db" data-d="2">水</button>
+              <button type="button" class="db" data-d="3">木</button>
+              <button type="button" class="db" data-d="4">金</button>
+              <button type="button" class="db on" data-d="5">土</button>
+              <button type="button" class="db on" data-d="6">日</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 労働時間 -->
+        <div class="cpanel" id="cp-labor">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="card" style="margin-bottom:0">
+              <div class="card-title"><i class="ti ti-clock"></i>週労働時間上限</div>
+              <div class="fr"><label>一般アルバイト</label><input type="number" id="c-gen" value="28"><span class="u">h/週</span></div>
+              <div class="fr"><label>学生アルバイト</label><input type="number" id="c-stu" value="20"><span class="u">h/週</span></div>
+              <div class="fr"><label>パートタイム</label><input type="number" id="c-pt" value="25"><span class="u">h/週</span></div>
+              <div class="fr"><label>社員</label><input type="number" id="c-sei" value="40"><span class="u">h/週</span></div>
+              <div class="fr"><label>社保付きアルバイト</label><input type="number" id="c-sha" value="30"><span class="u">h/週</span></div>
+              <div class="fr"><label>最小シフト時間</label><input type="number" id="c-min" value="3"><span class="u">h</span></div>
+              <div class="fr"><label>最大連続勤務</label><input type="number" id="c-consec" value="5"><span class="u">日</span></div>
+              <div class="fr"><label>休憩付与（以上）</label><input type="number" id="c-bth" value="6"><span class="u">h</span></div>
+              <div class="fr"><label>休憩時間</label><input type="number" id="c-bmin" value="45"><span class="u">分</span></div>
+            </div>
+            <div class="card" style="margin-bottom:0">
+              <div class="card-title"><i class="ti ti-shield-check"></i>シフトルール</div>
+              <div class="ckg">
+                <label class="ck"><input type="checkbox" checked id="r-leader"> リーダー必須</label>
+                <label class="ck"><input type="checkbox" checked id="r-skill"> スキル考慮</label>
+                <label class="ck"><input type="checkbox" checked id="r-ng"> NG日除外</label>
+                <label class="ck"><input type="checkbox" checked id="r-allpos"> 全ポジション充足</label>
+                <label class="ck"><input type="checkbox" checked id="r-break"> 休憩控除</label>
+                <label class="ck"><input type="checkbox" checked id="r-maxd"> 連続制限</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ポジション人数 -->
+        <div class="cpanel" id="cp-pos">
+          <div class="card">
+            <div class="card-title"><i class="ti ti-chef-hat"></i>厨房 — 必要人数（平日 / 週末）</div>
+            <div class="pos-wrap">
+              <table class="pos-tbl">
+                <thead><tr>
+                  <th>ポジション</th>
+                  <th>朝準備(平)</th><th>ランチ(平)</th><th>アイドル(平)</th><th>ディナー(平)</th><th>閉店(平)</th>
+                  <th class="th-we">朝準備(末)</th><th class="th-we">ランチ(末)</th><th class="th-we">アイドル(末)</th><th class="th-we">ディナー(末)</th><th class="th-we">閉店(末)</th>
+                </tr></thead>
+                <tbody id="kt-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-layout"></i>フロア — 必要人数（平日 / 週末）</div>
+            <div class="pos-wrap">
+              <table class="pos-tbl">
+                <thead><tr>
+                  <th>ポジション</th>
+                  <th>朝準備(平)</th><th>ランチ(平)</th><th>アイドル(平)</th><th>ディナー(平)</th><th>閉店(平)</th>
+                  <th class="th-we">朝準備(末)</th><th class="th-we">ランチ(末)</th><th class="th-we">アイドル(末)</th><th class="th-we">ディナー(末)</th><th class="th-we">閉店(末)</th>
+                </tr></thead>
+                <tbody id="fl-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 時給 -->
+        <div class="cpanel" id="cp-wage">
+          <div class="card">
+            <div class="card-title"><i class="ti ti-coin"></i>時給設定</div>
+            <div class="fr"><label>一般アルバイト</label><input type="number" id="w-gen" value="950"><span class="u">円/h</span></div>
+            <div class="fr"><label>学生アルバイト</label><input type="number" id="w-stu" value="930"><span class="u">円/h</span></div>
+            <div class="fr"><label>パートタイム</label><input type="number" id="w-pt" value="1050"><span class="u">円/h</span></div>
+            <div class="fr"><label>社員（月給換算）</label><input type="number" id="w-sei" value="210000"><span class="u">円/月</span></div>
+            <div class="fr"><label>社保付きアルバイト</label><input type="number" id="w-sha" value="1100"><span class="u">円/h</span></div>
+            <div class="fr"><label>リーダー手当（追加）</label><input type="number" id="w-lead" value="50"><span class="u">円/h</span></div>
+            <div class="fr"><label>深夜割増（22時〜）</label><input type="number" id="w-late" value="25"><span class="u">%増</span></div>
+            <div class="fr"><label>週末割増</label><input type="number" id="w-we" value="0"><span class="u">%増</span></div>
+          </div>
+        </div>
+
+        <div style="text-align:right;margin-top:14px">
+          <button class="btn p" onclick="saveCond()"><i class="ti ti-check"></i>条件を保存</button>
+        </div>
+      </div>
+
+      <!-- ── SHIFT ── -->
+      <div class="pg" id="pg-shift">
+        <div class="shift-ctl">
+          <div class="wk-nav">
+            <button onclick="prevWk()"><i class="ti ti-chevron-left"></i></button>
+            <span class="wl" id="wk-lbl">—</span>
+            <button onclick="nextWk()"><i class="ti ti-chevron-right"></i></button>
+          </div>
+          <button class="btn p" onclick="genShift()"><i class="ti ti-bolt"></i>自動生成</button>
+          <button class="btn" onclick="expCSV()"><i class="ti ti-download"></i>CSV出力</button>
+          <button class="btn line" onclick="sendLine()"><i class="ti ti-message-circle"></i>LINE送信</button>
+        </div>
+        <div class="hint" id="s-hint"></div>
+        <div class="shift-wrap" id="s-wrap">
+          <div style="text-align:center;padding:60px 20px;color:var(--text3)">
+            <i class="ti ti-calendar" style="font-size:36px;display:block;margin-bottom:12px;opacity:.4"></i>
+            <p style="font-size:13px">「自動生成」ボタンでシフトを作成します</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PAYROLL ── -->
+      <div class="pg" id="pg-pay">
+        <div class="shift-ctl">
+          <select id="pay-mo" style="padding:7px 11px;border:1px solid var(--border2);border-radius:8px;font-size:12px;background:var(--surface);color:var(--text);font-family:inherit"></select>
+          <button class="btn p" onclick="calcPay()"><i class="ti ti-refresh"></i>集計する</button>
+          <button class="btn" onclick="expPayCSV()"><i class="ti ti-download"></i>CSV出力</button>
+        </div>
+        <div class="pay-sum" id="pay-sum"></div>
+        <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <table class="ptbl">
+            <thead><tr><th>スタッフ</th><th>区分</th><th>勤務日数</th><th>月間h</th><th>時給/月給</th><th>基本給</th><th>手当</th><th>支給合計</th></tr></thead>
+            <tbody id="pay-body">
+              <tr><td colspan="8" style="text-align:center;padding:28px;color:var(--text3)">シフト生成後に「集計する」を押してください</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── LINE ── -->
+      <div class="pg" id="pg-line">
+        <div class="card">
+          <div class="card-title"><i class="ti ti-brand-line" style="color:#06C755"></i>LINE Notify 連携設定</div>
+          <span class="line-st disc" id="l-badge"><i class="ti ti-circle-x"></i> 未接続</span>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+            <input type="password" id="l-tok" placeholder="LINE Notify アクセストークンを貼り付け"
+              style="flex:1;padding:8px 11px;border:1px solid var(--border2);border-radius:8px;font-size:12px;background:var(--surface);color:var(--text);font-family:inherit">
+            <button class="btn p" onclick="connLine()"><i class="ti ti-plug"></i>接続確認</button>
+          </div>
+          <p style="font-size:11px;color:var(--text3)">
+            <a href="https://notify-bot.line.me/" target="_blank" style="color:var(--accent)">notify-bot.line.me</a>
+            でトークンを発行し、店舗LINEグループに「LINE Notify」を追加してください。
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="ti ti-bell"></i>通知タイミング</div>
+          <div class="notif-item"><div><strong>シフト確定通知</strong><div style="font-size:11px;color:var(--text3);margin-top:2px">シフト生成後すぐにグループへ送信</div></div><button class="tog on" onclick="this.classList.toggle('on')"></button></div>
+          <div class="notif-item"><div><strong>前日リマインド</strong><div style="font-size:11px;color:var(--text3);margin-top:2px">翌日出勤者へ前日20:00に送信</div></div><button class="tog on" onclick="this.classList.toggle('on')"></button></div>
+          <div class="notif-item"><div><strong>欠員アラート</strong><div style="font-size:11px;color:var(--text3);margin-top:2px">人数不足を即時通知</div></div><button class="tog on" onclick="this.classList.toggle('on')"></button></div>
+          <div class="notif-item"><div><strong>月次給与サマリー</strong><div style="font-size:11px;color:var(--text3);margin-top:2px">月末に店長へ人件費サマリーを送信</div></div><button class="tog" onclick="this.classList.toggle('on')"></button></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="ti ti-eye"></i>送信プレビュー</div>
+          <button class="btn" onclick="prevLine()" style="margin-bottom:10px"><i class="ti ti-refresh"></i>プレビュー更新</button>
+          <div class="prev-box" id="l-prev">シフトを生成してからプレビューを確認してください。</div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- MODAL -->
+<div class="backdrop" id="mod-staff">
+  <div class="modal">
+    <button class="xb" onclick="closeMod()"><i class="ti ti-x"></i></button>
+    <h2 id="mod-title">スタッフ追加</h2>
+    <input type="hidden" id="eid">
+    <div class="mf"><label>名前</label><input type="text" id="f-name" placeholder="山田 太郎"></div>
+    <div class="mf"><label>区分</label>
+      <select id="f-type">
+        <option value="general">一般アルバイト</option>
+        <option value="student">学生アルバイト</option>
+        <option value="parttime">パートタイム</option>
+        <option value="shahou">社保付きアルバイト</option>
+        <option value="seiki">社員</option>
+      </select>
+    </div>
+    <div class="mf"><label>個別最大週労働時間（空欄で区分の上限を使用）</label><input type="number" id="f-maxh" placeholder="例: 25"></div>
+    <div class="mf"><label>個別時給（空欄で区分の設定を使用）</label><input type="number" id="f-wage" placeholder="例: 980"></div>
+    <div class="sec-div">担当ポジション — 厨房</div>
+    <div class="mf"><div class="sg" id="kit-sk"></div></div>
+    <div class="sec-div">担当ポジション — フロア</div>
+    <div class="mf"><div class="sg" id="flo-sk"></div></div>
+    <div class="sec-div">アビリティ（担当外のスキル）</div>
+    <div class="mf"><div class="sg" id="abil-sk"></div></div>
+    <div class="sec-div">勤務可能曜日 <span style="font-weight:400;font-size:10px;color:var(--text3)">（青 = 出勤可）</span></div>
+    <div class="mf">
+      <div class="day-row" id="mod-days">
+        <button type="button" class="db on" data-d="0">月</button>
+        <button type="button" class="db on" data-d="1">火</button>
+        <button type="button" class="db on" data-d="2">水</button>
+        <button type="button" class="db on" data-d="3">木</button>
+        <button type="button" class="db on" data-d="4">金</button>
+        <button type="button" class="db on" data-d="5">土</button>
+        <button type="button" class="db on" data-d="6">日</button>
+      </div>
+    </div>
+    <div class="mf"><label>希望シフト帯</label>
+      <select id="f-pref">
+        <option value="any">すべての時間帯</option>
+        <option value="day">昼のみ（朝準備〜アイドル）</option>
+        <option value="night">夜のみ（ディナー〜閉店）</option>
+      </select>
+    </div>
+    <div class="macts">
+      <button class="btn danger" id="del-btn" onclick="delStaff()" style="display:none"><i class="ti ti-trash"></i>削除</button>
+      <button class="btn" onclick="closeMod()">キャンセル</button>
+      <button class="btn p" onclick="saveStaff()"><i class="ti ti-check"></i>保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const KIT=[
+  {key:'kama',    lbl:'釜（うどん茹で）'},
+  {key:'fryer',   lbl:'フライヤー（天ぷら）'},
+  {key:'conro',   lbl:'コンロ（出汁）'},
+  {key:'dishup',  lbl:'DISH UP（盛り付け）'},
+  {key:'dishwash',lbl:'皿洗い'},
+];
+const FLO=[
+  {key:'cashier',lbl:'レジ・会計'},
+  {key:'hall',   lbl:'ホール'},
+  {key:'leader', lbl:'リーダー'},
+];
+const ABILITIES=[
+  {key:'sobaneri',lbl:'蕎麦練り'},
+];
+const ALL_POS=[...KIT,...FLO];
+const BANDS=['prep','lunch','idle','dinner','close'];
+const BAND_LBL={prep:'朝準備',lunch:'ランチP',idle:'アイドル',dinner:'ディナーP',close:'閉店'};
+const BAND_H={prep:3,lunch:3,idle:3,dinner:4,close:2};
+const PALETTES=['#B5D4F4:#0C447C','#9FE1CB:#085041','#CECBF6:#3C3489','#FAC775:#633806','#F5C4B3:#712B13','#C0DD97:#27500A','#F4C0D1:#72243E','#85B7EB:#0C447C','#F0997B:#4A1B0C','#5DCAA5:#04342C'];
+
+const KIT_DEF={
+  kama:    {prepW:1,lunchW:2,idleW:1,dinnerW:1,closeW:1,prepE:1,lunchE:3,idleE:1,dinnerE:2,closeE:1},
+  fryer:   {prepW:1,lunchW:2,idleW:1,dinnerW:1,closeW:0,prepE:1,lunchE:2,idleE:1,dinnerE:1,closeE:0},
+  conro:   {prepW:1,lunchW:1,idleW:1,dinnerW:1,closeW:1,prepE:1,lunchE:2,idleE:1,dinnerE:2,closeE:1},
+  dishup:  {prepW:1,lunchW:2,idleW:1,dinnerW:2,closeW:0,prepE:1,lunchE:3,idleE:1,dinnerE:2,closeE:0},
+  dishwash:{prepW:1,lunchW:1,idleW:1,dinnerW:1,closeW:1,prepE:1,lunchE:2,idleE:1,dinnerE:1,closeE:1},
+};
+const FLO_DEF={
+  cashier:{prepW:1,lunchW:2,idleW:1,dinnerW:1,closeW:1,prepE:1,lunchE:3,idleE:1,dinnerE:2,closeE:1},
+  hall:   {prepW:1,lunchW:2,idleW:1,dinnerW:2,closeW:1,prepE:1,lunchE:3,idleE:1,dinnerE:3,closeE:1},
+  leader: {prepW:1,lunchW:1,idleW:1,dinnerW:1,closeW:1,prepE:1,lunchE:1,idleE:1,dinnerE:1,closeE:1},
+};
+
+let staff=[
+  {id:1,name:'田中 花子',type:'seiki',   maxH:null,wage:null,skills:['kama','dishup','cashier','leader'],abilities:['sobaneri'],avail:[0,1,2,3,4,5,6],pref:'any'},
+  {id:2,name:'鈴木 健太',type:'student', maxH:null,wage:null,skills:['fryer','conro','dishwash'],abilities:[],avail:[4,5,6],pref:'night'},
+  {id:3,name:'佐藤 美咲',type:'student', maxH:null,wage:null,skills:['cashier','hall','dishup'],abilities:[],avail:[0,2,4,6],pref:'day'},
+  {id:4,name:'山本 拓也',type:'general', maxH:null,wage:null,skills:['kama','fryer','conro','dishup','dishwash','leader'],abilities:['sobaneri'],avail:[0,1,2,3,4,5,6],pref:'any'},
+  {id:5,name:'中村 あい', type:'parttime',maxH:16,  wage:null,skills:['hall','cashier','dishup'],abilities:[],avail:[0,1,2,3],pref:'day'},
+  {id:6,name:'伊藤 直樹',type:'general', maxH:null,wage:null,skills:['conro','fryer','dishwash','hall'],abilities:[],avail:[1,3,5,6],pref:'any'},
+  {id:7,name:'松田 亮',  type:'shahou',  maxH:null,wage:null,skills:['kama','dishup','dishwash'],abilities:['sobaneri'],avail:[0,1,2,3,4],pref:'day'},
+  {id:8,name:'高橋 さくら',type:'parttime',maxH:20,wage:1000,skills:['cashier','hall','leader'],abilities:[],avail:[2,4,5,6],pref:'any'},
+];
+let nid=9,wkOff=0,curShift=null,lineConn=false;
+let weDays=new Set([5,6]);
+
+const TYPE_LBL={general:'一般',student:'学生',parttime:'パート',shahou:'社保付き',seiki:'社員'};
+const TYPE_COLOR={general:'#EAF3DE:#27500A',student:'#E6F1FB:#0C447C',parttime:'#FAEEDA:#633806',shahou:'#EEEDFE:#3C3489',seiki:'#E1F5EE:#085041'};
+
+function ac(i){const p=PALETTES[i%PALETTES.length].split(':');return{bg:p[0],tx:p[1]};}
+function ini(n){return n.split(' ').map(x=>x[0]).join('').slice(0,2);}
+function tlbl(t){return TYPE_LBL[t]||t;}
+function typeBadge(t){const c=(TYPE_COLOR[t]||'#F1EFE8:#444441').split(':');return`<span style="font-size:10px;padding:1px 7px;border-radius:20px;font-weight:600;background:${c[0]};color:${c[1]}">${tlbl(t)}</span>`;}
+function mxH(s){
+  if(s.maxH)return s.maxH;
+  const v={general:+document.getElementById('c-gen').value||28,student:+document.getElementById('c-stu').value||20,parttime:+document.getElementById('c-pt').value||25,shahou:+document.getElementById('c-sha').value||30,seiki:+document.getElementById('c-sei').value||40};
+  return v[s.type]||28;
+}
+function bWage(s){
+  if(s.wage)return s.wage;
+  const v={general:+document.getElementById('w-gen').value||950,student:+document.getElementById('w-stu').value||930,parttime:+document.getElementById('w-pt').value||1050,shahou:+document.getElementById('w-sha').value||1100,seiki:null};
+  return v[s.type];
+}
+function wageDisplay(s){
+  if(s.type==='seiki')return'月給¥'+(+document.getElementById('w-sei').value||210000).toLocaleString();
+  return '¥'+(bWage(s)||0).toLocaleString()+'/h';
+}
+
+function renderStaff(){
+  document.getElementById('sgrid').innerHTML=staff.map((s,i)=>{
+    const c=ac(i);
+    const tags=s.skills.map(k=>{const p=ALL_POS.find(x=>x.key===k);return`<span class="tg ${k}">${p?p.lbl.split('（')[0]:k}</span>`;}).join('');
+    const abilTags=s.abilities&&s.abilities.length?`<div class="abil-sec"><div class="abil-lbl">アビリティ</div><div class="tgs">${s.abilities.map(k=>{const a=ABILITIES.find(x=>x.key===k);return`<span class="tg abil">${a?a.lbl:k}</span>`;}).join('')}</div></div>`:'';
+    return`<div class="scard" onclick="editStaff(${s.id})">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
+        <div class="av" style="background:${c.bg};color:${c.tx}">${ini(s.name)}</div>
+        <div style="min-width:0">
+          <div class="sn">${s.name}</div>
+          <div class="sr" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:3px">
+            ${typeBadge(s.type)}<span>${wageDisplay(s)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="tgs">${tags}</div>${abilTags}
+    </div>`;
+  }).join('')||`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3)"><i class="ti ti-users" style="font-size:32px;display:block;margin-bottom:10px;opacity:.3"></i><p>スタッフを追加してください</p></div>`;
+  document.getElementById('st0').textContent=staff.length;
+  document.getElementById('st1').textContent=staff.filter(s=>s.skills.includes('leader')).length;
+  document.getElementById('st2').textContent=staff.filter(s=>s.skills.some(k=>KIT.map(x=>x.key).includes(k))).length;
+  document.getElementById('st3').textContent=staff.filter(s=>s.abilities&&s.abilities.includes('sobaneri')).length;
+}
+
+function go(name){
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.rail-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('pg-'+name).classList.add('on');
+  document.querySelector(`[data-pg="${name}"]`).classList.add('active');
+  const T={staff:'スタッフ管理',cond:'勤務条件設定',shift:'シフト表',pay:'給与・月次集計',line:'LINE通知設定'};
+  document.getElementById('topbar-title').textContent=T[name]||name;
+  document.getElementById('topbar-acts').innerHTML=name==='staff'?'<button class="btn p" onclick="openAdd()"><i class="ti ti-plus"></i>スタッフ追加</button>':'';
+  if(name==='shift')renderWkLbl();
+  if(name==='pay')initPayMo();
+}
+
+function ctab(name){
+  const ns=['bands','labor','pos','wage'];
+  document.querySelectorAll('.ctab').forEach((b,i)=>b.classList.toggle('on',ns[i]===name));
+  document.querySelectorAll('.cpanel').forEach(p=>p.classList.remove('on'));
+  document.getElementById('cp-'+name).classList.add('on');
+}
+
+function initPosTables(){
+  const PCOLS=['prepW','lunchW','idleW','dinnerW','closeW','prepE','lunchE','idleE','dinnerE','closeE'];
+  function rows(arr,defs,id){
+    document.getElementById(id).innerHTML=arr.map(p=>{
+      const d=defs[p.key]||{};
+      return`<tr><td>${p.lbl.split('（')[0]}</td>${PCOLS.map(c=>`<td><input type="number" min="0" max="20" value="${d[c]||0}" onchange="updPos('${p.key}','${c}',this.value)"></td>`).join('')}</tr>`;
+    }).join('');
+  }
+  rows(KIT,KIT_DEF,'kt-body');
+  rows(FLO,FLO_DEF,'fl-body');
+}
+function updPos(pos,col,val){
+  if(KIT_DEF[pos])KIT_DEF[pos][col]=+val;
+  if(FLO_DEF[pos])FLO_DEF[pos][col]=+val;
+}
+
+function initModalLists(){
+  document.getElementById('kit-sk').innerHTML=KIT.map(p=>`<label class="ck"><input type="checkbox" class="sk-cb" value="${p.key}"> ${p.lbl}</label>`).join('');
+  document.getElementById('flo-sk').innerHTML=FLO.map(p=>`<label class="ck"><input type="checkbox" class="sk-cb" value="${p.key}"> ${p.lbl}</label>`).join('');
+  document.getElementById('abil-sk').innerHTML=ABILITIES.map(a=>`<label class="ck"><input type="checkbox" class="ab-cb" value="${a.key}"> ${a.lbl}</label>`).join('');
+}
+
+function initPayMo(){
+  const sel=document.getElementById('pay-mo');sel.innerHTML='';
+  const now=new Date();
+  for(let i=0;i<6;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const o=document.createElement('option');
+    o.value=`${d.getFullYear()}-${d.getMonth()+1}`;
+    o.textContent=`${d.getFullYear()}年${d.getMonth()+1}月`;
+    sel.appendChild(o);
+  }
+}
+
+function openAdd(){
+  document.getElementById('mod-title').textContent='スタッフ追加';
+  document.getElementById('eid').value='';
+  ['f-name','f-maxh','f-wage'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-type').value='general';
+  document.getElementById('f-pref').value='any';
+  document.querySelectorAll('.sk-cb,.ab-cb').forEach(c=>c.checked=false);
+  document.querySelectorAll('#mod-days .db').forEach(b=>b.classList.add('on'));
+  document.getElementById('del-btn').style.display='none';
+  document.getElementById('mod-staff').classList.add('open');
+}
+function editStaff(id){
+  const s=staff.find(x=>x.id===id);if(!s)return;
+  document.getElementById('mod-title').textContent='スタッフ編集';
+  document.getElementById('eid').value=id;
+  document.getElementById('f-name').value=s.name;
+  document.getElementById('f-type').value=s.type;
+  document.getElementById('f-maxh').value=s.maxH||'';
+  document.getElementById('f-wage').value=s.wage||'';
+  document.getElementById('f-pref').value=s.pref;
+  document.querySelectorAll('.sk-cb').forEach(c=>c.checked=s.skills.includes(c.value));
+  document.querySelectorAll('.ab-cb').forEach(c=>c.checked=s.abilities&&s.abilities.includes(c.value));
+  document.querySelectorAll('#mod-days .db').forEach(b=>b.classList.toggle('on',s.avail.includes(+b.dataset.d)));
+  document.getElementById('del-btn').style.display='inline-flex';
+  document.getElementById('mod-staff').classList.add('open');
+}
+function delStaff(){
+  if(!confirm('このスタッフを削除しますか？'))return;
+  staff=staff.filter(s=>s.id!==+document.getElementById('eid').value);
+  closeMod();renderStaff();
+}
+function saveStaff(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){alert('名前を入力してください');return;}
+  const skills=[...document.querySelectorAll('.sk-cb:checked')].map(c=>c.value);
+  if(!skills.length){alert('担当ポジションを最低1つ選択してください');return;}
+  const abilities=[...document.querySelectorAll('.ab-cb:checked')].map(c=>c.value);
+  const avail=[...document.querySelectorAll('#mod-days .db.on')].map(b=>+b.dataset.d);
+  const obj={name,type:document.getElementById('f-type').value,maxH:+document.getElementById('f-maxh').value||null,wage:+document.getElementById('f-wage').value||null,skills,abilities,avail,pref:document.getElementById('f-pref').value};
+  const eid=+document.getElementById('eid').value;
+  if(eid)Object.assign(staff.find(x=>x.id===eid),obj);
+  else staff.push({id:nid++,...obj});
+  closeMod();renderStaff();
+}
+function closeMod(){document.getElementById('mod-staff').classList.remove('open');}
+
+function bindDays(containerId,store){
+  document.getElementById(containerId).querySelectorAll('.db').forEach(b=>{
+    b.addEventListener('click',()=>{
+      b.classList.toggle('on');
+      if(store){const d=+b.dataset.d;if(b.classList.contains('on'))store.add(d);else store.delete(d);}
+    });
+  });
+}
+
+function getWkDates(){
+  const base=new Date();base.setDate(base.getDate()+wkOff*7);
+  const mon=new Date(base);mon.setDate(base.getDate()-((base.getDay()+6)%7));
+  return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});
+}
+function renderWkLbl(){
+  const d=getWkDates()[0];
+  const wn=['第1週','第2週','第3週','第4週','第5週'][Math.ceil(d.getDate()/7)-1]||'';
+  document.getElementById('wk-lbl').textContent=`${d.getFullYear()}年${d.getMonth()+1}月${wn}`;
+}
+function prevWk(){wkOff--;renderWkLbl();if(curShift)genShift();}
+function nextWk(){wkOff++;renderWkLbl();if(curShift)genShift();}
+
+const DN=['月','火','水','木','金','土','日'];
+function isWE(di){return weDays.has(di);}
+function getPosReq(key,band,we){const sfx=we?'E':'W';const d=KIT_DEF[key]||FLO_DEF[key];return d?d[band+sfx]||0:0;}
+function bandKey(pref){if(pref==='day')return['prep','lunch','idle'];if(pref==='night')return['dinner','close'];return BANDS;}
+
+function genShift(){
+  if(!staff.length){alert('スタッフを追加してください');return;}
+  const dates=getWkDates();
+  const wkH={};staff.forEach(s=>wkH[s.id]=0);
+  const schedule=staff.map(s=>{
+    const mh=mxH(s);
+    const avB=bandKey(s.pref);
+    const shifts=dates.map((d,di)=>{
+      const dayIdx=(d.getDay()+6)%7;
+      if(!s.avail.includes(dayIdx))return'off';
+      if(wkH[s.id]>=mh)return'off';
+      const chosen=avB[Math.floor(Math.random()*avB.length)];
+      const h=BAND_H[chosen]||3;
+      if(wkH[s.id]+h>mh)return'off';
+      wkH[s.id]+=h;
+      return chosen;
+    });
+    return{staff:s,shifts,wkH:wkH[s.id]};
+  });
+  curShift=schedule;
+  const issues=[];
+  dates.forEach((d,di)=>{
+    const dayIdx=(d.getDay()+6)%7;
+    const we=isWE(dayIdx);
+    const workers=schedule.filter(r=>r.shifts[di]!=='off');
+    if(!workers.some(r=>r.staff.skills.includes('leader'))&&workers.length)issues.push(`${DN[di]}リーダー不足`);
+    BANDS.forEach(band=>{
+      const bw=schedule.filter(r=>r.shifts[di]===band);
+      ALL_POS.forEach(p=>{
+        const req=getPosReq(p.key,band,we);
+        const can=bw.filter(r=>r.staff.skills.includes(p.key)).length;
+        if(req>0&&can<req)issues.push(`${DN[di]} ${BAND_LBL[band]} ${p.lbl.split('（')[0]}不足(${can}/${req})`);
+      });
+    });
+  });
+
+  const SLBL={prep:'朝準備',lunch:'ランチP',idle:'アイドル',dinner:'ディナーP',close:'閉店',off:'休み'};
+  let html=`<table class="stbl"><thead><tr>
+    <th class="sticky-head" style="min-width:130px">スタッフ</th>
+    ${dates.map((d,i)=>{const we=isWE((d.getDay()+6)%7);return`<th style="${we?'background:#E1F5EE;color:#085041':''}">
+      ${DN[i]}<br><span style="font-size:9px;font-weight:400">${d.getMonth()+1}/${d.getDate()}${we?' ★':''}</span>
+    </th>`;}).join('')}<th>週計</th></tr></thead><tbody>`;
+  schedule.forEach((row,ri)=>{
+    const c=ac(ri);
+    const hasSoba=row.staff.abilities&&row.staff.abilities.includes('sobaneri');
+    html+=`<tr>
+      <td class="sticky-col">
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="width:28px;height:28px;border-radius:50%;background:${c.bg};color:${c.tx};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${ini(row.staff.name)}</div>
+          <div>
+            <div style="font-weight:600;font-size:12px;letter-spacing:-.01em">${row.staff.name}${hasSoba?'<span style="font-size:9px;margin-left:4px;background:#F1EFE8;color:#5F5E5A;padding:1px 5px;border-radius:10px;font-style:italic">蕎麦練り</span>':''}</div>
+            <div style="font-size:10px;color:var(--text3)">${tlbl(row.staff.type)}</div>
+          </div>
+        </div>
+      </td>
+      ${row.shifts.map(sh=>`<td><span class="sb ${sh}">${SLBL[sh]}</span></td>`).join('')}
+      <td><span style="font-weight:700;font-size:12px">${row.wkH}</span><span style="font-size:10px;color:var(--text3)">h</span></td>
+    </tr>`;
+  });
+  const covRow=dates.map((d,di)=>{
+    const cnt=schedule.filter(r=>r.shifts[di]!=='off').length;
+    const ok=cnt>=3;
+    return`<td style="font-size:10px;font-weight:700;color:${ok?'#0F6E56':'#A32D2D'}">${cnt}名</td>`;
+  }).join('');
+  html+=`<tr style="background:var(--surface2)"><td class="sticky-col" style="font-size:10px;font-weight:600;color:var(--text3);background:var(--surface2)">充足確認</td>${covRow}<td></td></tr></tbody></table>`;
+  document.getElementById('s-wrap').innerHTML=html;
+  const hint=document.getElementById('s-hint');
+  hint.className=`hint ${issues.length?'warn':'ok'}`;
+  hint.innerHTML=issues.length
+    ?`<i class="ti ti-alert-triangle"></i>${issues.slice(0,4).join(' / ')}${issues.length>4?` 他${issues.length-4}件`:''}`
+    :`<i class="ti ti-circle-check"></i>シフト生成完了 — ${staff.length}名 / 週計${schedule.reduce((a,r)=>a+r.wkH,0)}h / 全ポジション充足`;
+  prevLine();
+}
+
+function calcPay(){
+  if(!curShift){alert('先にシフトを生成してください');return;}
+  const lB=+document.getElementById('w-lead').value||50;
+  const wePct=(+document.getElementById('w-we').value||0)/100;
+  const latePct=(+document.getElementById('w-late').value||25)/100;
+  const seiMon=+document.getElementById('w-sei').value||210000;
+  const rows=curShift.map(row=>{
+    const s=row.staff;const isL=s.skills.includes('leader');
+    const days=row.shifts.filter(sh=>sh!=='off').length;const mH=row.wkH*4;
+    let basic,late=0,we=0,hr;
+    if(s.type==='seiki'){basic=seiMon;hr=Math.round(seiMon/160);}
+    else{hr=(bWage(s)||950)+(isL?lB:0);basic=Math.round(mH*hr);late=Math.round(mH*.1*latePct*hr);we=Math.round(mH*.3*wePct*hr);}
+    return{s,hr,days,mH,basic,late,we,total:basic+late+we};
+  });
+  const totPay=rows.reduce((a,r)=>a+r.total,0);
+  const totH=rows.reduce((a,r)=>a+r.mH,0);
+  document.getElementById('pay-sum').innerHTML=`
+    <div class="pc"><div class="pl">月次人件費合計</div><div class="pv">¥${totPay.toLocaleString()}</div></div>
+    <div class="pc"><div class="pl">月次総労働時間</div><div class="pv">${totH}<span style="font-size:14px;font-weight:400">h</span></div></div>
+    <div class="pc"><div class="pl">スタッフ数</div><div class="pv">${rows.length}<span style="font-size:14px;font-weight:400">名</span></div></div>`;
+  const mx=Math.max(...rows.map(r=>r.total));
+  document.getElementById('pay-body').innerHTML=rows.map(r=>`<tr>
+    <td><div style="font-weight:600;letter-spacing:-.01em">${r.s.name}</div><div class="pay-bar-wrap"><div class="pay-bar" style="width:${Math.round(r.total/mx*100)}%"></div></div></td>
+    <td>${typeBadge(r.s.type)}</td>
+    <td>${r.days}日</td>
+    <td>${r.mH}h</td>
+    <td style="font-size:11px">${r.s.type==='seiki'?'月給¥'+r.basic.toLocaleString():'¥'+r.hr.toLocaleString()+'/h'}</td>
+    <td>¥${r.basic.toLocaleString()}</td>
+    <td style="color:var(--text3);font-size:11px">${r.late>0?'深¥'+r.late.toLocaleString():''}${r.we>0?' 週末¥'+r.we.toLocaleString():''}</td>
+    <td style="font-weight:700">¥${r.total.toLocaleString()}</td>
+  </tr>`).join('');
+}
+
+function expCSV(){
+  if(!curShift){alert('先にシフトを生成してください');return;}
+  const dates=getWkDates();
+  const rows=[['スタッフ','区分',...dates.map(d=>`${DN[(d.getDay()+6)%7]} ${d.getMonth()+1}/${d.getDate()}`),'週計h']];
+  curShift.forEach(r=>{rows.push([r.staff.name,tlbl(r.staff.type),...r.shifts,r.wkH]);});
+  dlCSV(rows,'shift_nishijin.csv');
+}
+function expPayCSV(){
+  if(!curShift){alert('先にシフトを生成してください');return;}
+  calcPay();
+  const rows=[['スタッフ','区分','勤務日数','月間h','支給合計']];
+  curShift.forEach(r=>{
+    const s=r.staff;const isL=s.skills.includes('leader');
+    const lB=+document.getElementById('w-lead').value||50;
+    const hr=(bWage(s)||950)+(isL?lB:0);
+    const mH=r.wkH*4;const basic=Math.round(mH*hr);
+    rows.push([s.name,tlbl(s.type),r.shifts.filter(sh=>sh!=='off').length,mH,basic]);
+  });
+  dlCSV(rows,'payroll_nishijin.csv');
+}
+function dlCSV(rows,filename){
+  const bom='\uFEFF';
+  const csv=bom+rows.map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download=filename;a.click();
+}
+
+function connLine(){
+  const t=document.getElementById('l-tok').value.trim();
+  if(!t){alert('トークンを入力してください');return;}
+  lineConn=true;
+  const b=document.getElementById('l-badge');b.className='line-st conn';b.innerHTML='<i class="ti ti-circle-check"></i> 接続中';
+  alert('LINE Notify に接続しました。\n※実際の送信にはサーバーサイドの実装が必要です。');
+}
+function sendLine(){
+  if(!lineConn){alert('LINE通知ページでトークンを接続してください');return;}
+  prevLine();
+  alert('LINE グループへシフトを送信しました！\n※デモ表示です。実際の送信にはサーバー実装が必要です。');
+}
+function prevLine(){
+  if(!curShift||!curShift.length)return;
+  const d=getWkDates()[0];
+  const wn=['第1週','第2週','第3週','第4週','第5週'][Math.ceil(d.getDate()/7)-1]||'';
+  const lines=curShift.slice(0,8).map(r=>{
+    const days=r.shifts.map((sh,i)=>sh!=='off'?DN[i]:'').filter(Boolean).join('');
+    return`  ${r.staff.name}（${tlbl(r.staff.type)}）：${days||'今週休み'} ${r.wkH}h`;
+  });
+  document.getElementById('l-prev').textContent=
+`【生そばウエスト 西新店】シフト確定
+${d.getFullYear()}年${d.getMonth()+1}月${wn}
+
+${lines.join('\n')}${curShift.length>8?`\n  ...他${curShift.length-8}名`:''  }
+
+変更・欠勤は前日までに店長へご連絡ください。
+よろしくお願いいたします。
+📍 西新店 TEL: 092-836-7440`;
+}
+function saveCond(){renderStaff();alert('条件を保存しました');}
+
+bindDays('we-days',weDays);
+bindDays('mod-days',null);
+initPosTables();
+initModalLists();
+renderStaff();
+renderWkLbl();
+</script>
+</body>
+</html>
