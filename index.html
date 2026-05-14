@@ -579,6 +579,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     </div>
     <div class="mf" id="wage-field"><label>時給（空欄で設定の時給を使用）</label><input type="number" id="f-wage" placeholder="例: 980"></div>
     <div class="mf" id="monthly-field" style="display:none"><label>月給（円）</label><input type="number" id="f-monthly" placeholder="例: 210000"></div>
+    <div class="mf"><label>週の最大希望時間（空欄で区分の上限）</label><input type="number" id="f-maxh" placeholder="例: 20" style="width:100%;padding:11px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit"></div>
     <div class="sec-div">担当エリア</div>
     <div class="mf">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
@@ -826,13 +827,14 @@ function renderStaff(){
       return`<span class="tg ${key}" style="display:inline-flex;align-items:center">${name}${b}</span>`;
     }).join('');
     const wageStr=mgr?`<span style="font-size:11px;color:var(--text3);margin-left:4px">${wdisp(s)}</span>`:'';
+    const maxhStr=s.max_h?`<span style="font-size:10px;color:var(--text3);margin-left:4px">最大${s.max_h}h/週</span>`:'';
     const clk=mgr?`onclick="editStaff('${s.id}')"`:'' ;
     const badge=`<span class="type-badge ${TCLS[s.type]||'tb-general'}" style="font-size:9px;padding:1px 6px">${TLBL[s.type]||'スタッフ'}</span>`;
     return`<div class="scard" ${clk}>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
         <div class="av" style="background:${c.bg};color:${c.tx};width:32px;height:32px;font-size:11px">${ini(s.name)}</div>
         <div style="min-width:0">
-          <div style="font-size:13px;font-weight:700">${s.name}${wageStr}</div>
+          <div style="font-size:13px;font-weight:700">${s.name}${wageStr}${maxhStr}</div>
           <div style="margin-top:2px">${badge}</div>
         </div>
       </div>
@@ -1308,6 +1310,7 @@ function onTypeChange(type){
   document.getElementById('f-type').value='general';
   document.getElementById('f-wage').value='';
   document.getElementById('f-monthly').value='';
+  document.getElementById('f-maxh').value='';
   clearLevelBtns();
   document.querySelectorAll('#mod-days .db').forEach(b=>b.classList.add('on'));
   document.getElementById('del-btn').style.display='none';
@@ -1324,6 +1327,7 @@ function editStaff(id){
   document.getElementById('f-type').value=t;
   document.getElementById('f-wage').value=t!=='seiki'?(s.wage||''):'';
   document.getElementById('f-monthly').value=t==='seiki'?(s.wage||''):'';
+  document.getElementById('f-maxh').value=s.max_h||'';
   onTypeChange(t);
   restoreLevelBtns(s.skills);
   const av=s.avail||[0,1,2,3,4,5,6];
@@ -1349,9 +1353,10 @@ async function saveStaff(){
   const type=document.getElementById('f-type').value;
   const isSei=type==='seiki';
   const wage=isSei?(+document.getElementById('f-monthly').value||null):(+document.getElementById('f-wage').value||null);
+  const max_h=+document.getElementById('f-maxh').value||null;
   const avail=[...document.querySelectorAll('#mod-days .db.on')].map(b=>+b.dataset.d);
   const pref=getSelPref();
-  const obj={name,type,max_h:null,wage,skills:skillsArr,abilities:[],avail,pref};
+  const obj={name,type,max_h,wage,skills:skillsArr,abilities:[],avail,pref};
   const eid=document.getElementById('eid').value;
   try{await saveStaffDB(obj,eid||null);closeMod();toast(eid?'更新しました':'追加しました');}catch(e){alert('保存失敗: '+e.message);}
 }
@@ -1534,11 +1539,28 @@ async function seedInitialData(){
     await sb.from('shifts').delete().neq('id','00000000-0000-0000-0000-000000000000');
     await sb.from('staff').delete().neq('id','00000000-0000-0000-0000-000000000000');
   }
-  console.log('初期データを投入中...');
-  const {error:staffErr}=await sb.from('staff').insert(
-    SEED_STAFF.map(s=>({...s,max_h:null,wage:null,abilities:[]}))
-  );
-  if(staffErr){console.error('スタッフ挿入エラー:',staffErr);return;}
+  console.log('初期データを投入中... 件数:'+SEED_STAFF.length);
+
+  // 10件ずつ分割して挿入（タイムアウト防止）
+  const chunk=10;
+  for(let i=0;i<SEED_STAFF.length;i+=chunk){
+    const batch=SEED_STAFF.slice(i,i+chunk).map(s=>({
+      name:s.name,
+      type:s.type,
+      max_h:null,
+      wage:null,
+      skills:s.skills,
+      abilities:[],
+      avail:s.avail,
+      pref:s.pref
+    }));
+    const {error}=await sb.from('staff').insert(batch);
+    if(error){
+      console.error('スタッフ挿入エラー('+i+'):',error.message,error.details);
+      return;
+    }
+    console.log(`スタッフ投入: ${i+1}〜${Math.min(i+chunk,SEED_STAFF.length)}件目`);
+  }
 
   const {data:staffRows}=await sb.from('staff').select('id,name').order('created_at');
   if(!staffRows)return;
@@ -1552,12 +1574,11 @@ async function seedInitialData(){
     schedule[sid]=days;
   });
 
-  // シフトを保存
   const {error:shiftErr}=await sb.from('shifts').insert({
     week_start:SEED_SHIFT_WEEK,
     schedule
   });
-  if(shiftErr)console.error('シフト挿入エラー:',shiftErr);
+  if(shiftErr)console.error('シフト挿入エラー:',shiftErr.message);
   else console.log('初期データ投入完了！');
 }
 
