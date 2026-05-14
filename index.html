@@ -485,7 +485,6 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
           <span class="legend-item" style="background:var(--conro-bg);color:var(--conro-t)">C コンロ</span>
           <span class="legend-item" style="background:var(--dishup-bg);color:var(--dishup-t)">D ディシャップ</span>
           <span class="legend-item" style="background:var(--wash-bg);color:var(--wash-t)">W 洗い場</span>
-          <span class="legend-item" style="background:var(--soba-bg);color:var(--soba-t)">S 蕎麦コネ</span>
           <span class="legend-item" style="background:var(--hall-bg);color:var(--hall-t)">ホール</span>
           <span class="legend-item" style="background:var(--hojyo-bg);color:var(--hojyo-t)">補 補助</span>
           <span class="legend-item" style="background:var(--renshu-bg);color:var(--renshu-t)">練 練習</span>
@@ -623,6 +622,12 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
         <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px solid var(--text3);border-radius:4px;font-size:14px;flex-shrink:0;transition:all .15s" id="idle-ck-box"></span>
         <i class="ti ti-coffee" style="font-size:16px;color:#5F5E5A"></i>アイドルタイム（15〜18時）も入れる
       </label>
+      <div class="sec-div" style="margin-top:12px">スキル</div>
+      <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;font-size:13px;font-weight:700;color:var(--text3);background:var(--surface2);transition:all .15s" id="soba-skill-label" onclick="toggleSobaSkill()">
+        <input type="checkbox" id="skill-sobaneri" style="display:none">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px solid var(--text3);border-radius:4px;font-size:14px;flex-shrink:0;transition:all .15s" id="soba-ck-box"></span>
+        <i class="ti ti-noodles" style="font-size:16px;color:var(--soba-t)"></i>蕎麦コネができる
+      </label>
     </div>
     <div class="macts">
       <button class="btn danger" id="del-btn" onclick="delStaff()" style="display:none"><i class="ti ti-trash"></i>削除</button>
@@ -668,7 +673,6 @@ const KIT=[
   {key:'conro',   lbl:'C コンロ',     subOpt:true},
   {key:'dishup',  lbl:'D ディシャップ',subOpt:true},
   {key:'dishwash',lbl:'W 洗い場',     subOpt:false},
-  {key:'sobaneri',lbl:'S 蕎麦コネ',   subOpt:true},
   {key:'morning', lbl:'朝準備',        subOpt:false},
 ];
 const FLO=[{key:'cashier',lbl:'レジ',subOpt:false},{key:'hall',lbl:'ホール',subOpt:false},{key:'leader',lbl:'リーダー',subOpt:false}];
@@ -684,7 +688,6 @@ const KIT_DEF={
   conro:   {lunchW:1,idleW:1,dinnerW:1,lunchE:2,idleE:1,dinnerE:2},
   dishup:  {lunchW:2,idleW:1,dinnerW:2,lunchE:3,idleE:1,dinnerE:2},
   dishwash:{lunchW:1,idleW:1,dinnerW:1,lunchE:2,idleE:1,dinnerE:1},
-  sobaneri:{lunchW:1,idleW:1,dinnerW:0,lunchE:1,idleE:1,dinnerE:0},
   morning: {lunchW:1,idleW:0,dinnerW:0,lunchE:1,idleE:0,dinnerE:0},
   other_kit:{lunchW:0,idleW:0,dinnerW:0,lunchE:0,idleE:0,dinnerE:0},
 };
@@ -826,6 +829,7 @@ function renderStaff(){
               (renshu?`<span style="font-size:9px;background:var(--renshu-bg);color:var(--renshu-t);padding:1px 4px;border-radius:3px;margin-left:2px">練</span>`:'');
       return`<span class="tg ${key}" style="display:inline-flex;align-items:center">${name}${b}</span>`;
     }).join('');
+    const sobaTag=(s.abilities||[]).includes('sobaneri')?`<span class="tg" style="background:var(--soba-bg);color:var(--soba-t)">蕎麦コネ</span>`:'';
     const wageStr=mgr?`<span style="font-size:11px;color:var(--text3);margin-left:4px">${wdisp(s)}</span>`:'';
     const maxhStr=s.max_h?`<span style="font-size:10px;color:var(--text3);margin-left:4px">最大${s.max_h}h/週</span>`:'';
     const clk=mgr?`onclick="editStaff('${s.id}')"`:'' ;
@@ -838,7 +842,7 @@ function renderStaff(){
           <div style="margin-top:2px">${badge}</div>
         </div>
       </div>
-      <div class="tgs">${tags}</div>
+      <div class="tgs">${tags}${sobaTag}</div>
     </div>`;
   }
 
@@ -1218,6 +1222,28 @@ function getSelectedSkills(){
 function setPref(p){
   document.querySelectorAll('[data-pref]').forEach(b=>b.classList.toggle('on',b.dataset.pref===p));
 }
+function toggleSobaSkill(){
+  const cb=document.getElementById('skill-sobaneri');
+  if(!cb)return;
+  cb.checked=!cb.checked;
+  onSobaSkillChange(cb);
+}
+function onSobaSkillChange(cb){
+  const label=document.getElementById('soba-skill-label');
+  const box=document.getElementById('soba-ck-box');
+  const on=cb.checked;
+  if(label){
+    label.style.borderColor=on?'var(--w-green)':'var(--border2)';
+    label.style.background=on?'var(--w-green-lt)':'var(--surface2)';
+    label.style.color=on?'var(--w-green-dk)':'var(--text3)';
+  }
+  if(box){
+    box.style.borderColor=on?'var(--w-green)':'var(--text3)';
+    box.style.background=on?'var(--w-green)':'transparent';
+    box.style.color='#fff';
+    box.textContent=on?'✓':'';
+  }
+}
 function toggleIdleOpt(){
   const cb=document.getElementById('pref-idle-opt');
   if(!cb)return;
@@ -1317,6 +1343,9 @@ function onTypeChange(type){
   onTypeChange('general');
   setArea('both');
   restorePref('any');
+  // 蕎麦コネリセット
+  const sobaCb=document.getElementById('skill-sobaneri');
+  if(sobaCb){sobaCb.checked=false;onSobaSkillChange(sobaCb);}
   document.getElementById('mod-staff').classList.add('open');}
 function editStaff(id){
   const s=staff.find(x=>x.id===id);if(!s)return;
@@ -1337,6 +1366,10 @@ function editStaff(id){
   const hf=skKeys.some(k=>['cashier','hall'].includes(k));
   setArea(hk&&hf?'both':hk?'kitchen':'hall');
   restorePref(s.pref||'any');
+  // 蕎麦コネスキル復元
+  const sobaCb=document.getElementById('skill-sobaneri');
+  const hasSoba=(s.abilities||[]).includes('sobaneri')||(s.skills||[]).some(sk=>(typeof sk==='string'?sk:sk.key)==='sobaneri');
+  if(sobaCb){sobaCb.checked=hasSoba;onSobaSkillChange(sobaCb);}
   document.getElementById('del-btn').style.display='inline-flex';
   document.getElementById('mod-staff').classList.add('open');
 }
@@ -1356,7 +1389,10 @@ async function saveStaff(){
   const max_h=+document.getElementById('f-maxh').value||null;
   const avail=[...document.querySelectorAll('#mod-days .db.on')].map(b=>+b.dataset.d);
   const pref=getSelPref();
-  const obj={name,type,max_h,wage,skills:skillsArr,abilities:[],avail,pref};
+  // 蕎麦コネはabilitiesとして保存
+  const hasSoba=document.getElementById('skill-sobaneri')?.checked||false;
+  const abilities=hasSoba?['sobaneri']:[];
+  const obj={name,type,max_h,wage,skills:skillsArr,abilities,avail,pref};
   const eid=document.getElementById('eid').value;
   try{await saveStaffDB(obj,eid||null);closeMod();toast(eid?'更新しました':'追加しました');}catch(e){alert('保存失敗: '+e.message);}
 }
