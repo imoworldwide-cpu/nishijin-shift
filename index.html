@@ -699,6 +699,7 @@ function onStaffSearch(kw){
   staffSearchKw=kw.trim();
   renderStaff();
 }
+let staff=[],shiftData={},wkOff=0,lineConn=false,curSec='all';
 let weDays=new Set([5,6]);
 
 function ac(i){const p=PAL[i%PAL.length].split(':');return{bg:p[0],tx:p[1]};}
