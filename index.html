@@ -269,7 +269,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .hint.ok{background:var(--w-green-lt);color:var(--w-green-dk);display:flex}
 .hint.warn{background:var(--red-bg);color:var(--red);display:flex}
 
-/* RESPONSIVE */
+/* 入力フィールドの色分け */
+.mf input.has-val{border-color:var(--w-green)!important;background:var(--w-green-lt)!important;color:var(--w-green-dk)!important;font-weight:700!important}
+.mf input.empty-val{border-color:var(--border2);background:var(--surface2);color:var(--text3)}
 @media(max-width:640px){
   .rail{display:none}.bottom-nav{display:block}
   .content{padding:12px;padding-bottom:88px}
@@ -624,12 +626,12 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
       </select>
     </div>
     <div class="mf"><label>個人パスワード（スタッフがログインに使用）</label>
-      <input type="text" id="f-password" placeholder="例: nishijin123" autocomplete="off">
+      <input type="text" id="f-password" placeholder="例: nishijin123" autocomplete="off" oninput="colorField(this)">
     </div>
-    <div class="mf" id="wage-field"><label>時給（空欄で設定の時給を使用）</label><input type="number" id="f-wage" placeholder="例: 980"></div>
-    <div class="mf" id="monthly-field" style="display:none"><label>月給（円）</label><input type="number" id="f-monthly" placeholder="例: 210000"></div>
-    <div class="mf"><label>週の最大希望時間（空欄で区分の上限）</label><input type="number" id="f-maxh" placeholder="例: 20" style="width:100%;padding:11px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit"></div>
-    <div class="mf"><label>週の最低出勤日数（社員向け・空欄で制限なし）</label><input type="number" id="f-mind" placeholder="例: 5" min="1" max="7" style="width:100%;padding:11px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit"></div>
+    <div class="mf" id="wage-field"><label>時給（空欄で設定の時給を使用）</label><input type="number" id="f-wage" placeholder="例: 980" oninput="colorField(this)"></div>
+    <div class="mf" id="monthly-field" style="display:none"><label>月給（円）</label><input type="number" id="f-monthly" placeholder="例: 210000" oninput="colorField(this)"></div>
+    <div class="mf"><label>週の最大希望時間（空欄で区分の上限）</label><input type="number" id="f-maxh" placeholder="例: 20" oninput="colorField(this)" style="width:100%;padding:11px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit"></div>
+    <div class="mf"><label>週の最低出勤日数（社員向け・空欄で制限なし）</label><input type="number" id="f-mind" placeholder="例: 5" min="1" max="7" oninput="colorField(this)" style="width:100%;padding:11px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit"></div>
     <div class="sec-div">担当エリア</div>
     <div class="mf">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
@@ -690,6 +692,11 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
         <input type="checkbox" id="skill-sobaneri" style="display:none">
         <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px solid var(--text3);border-radius:4px;font-size:14px;flex-shrink:0;transition:all .15s" id="soba-ck-box"></span>
         <i class="ti ti-noodles" style="font-size:16px;color:var(--soba-t)"></i>蕎麦コネができる
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;font-size:13px;font-weight:700;color:var(--text3);background:var(--surface2);transition:all .15s;margin-top:6px" id="hall-morning-label" onclick="toggleHallMorning()">
+        <input type="checkbox" id="skill-hall-morning" style="display:none">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px solid var(--text3);border-radius:4px;font-size:14px;flex-shrink:0;transition:all .15s" id="hall-morning-ck-box"></span>
+        <i class="ti ti-sun" style="font-size:16px;color:#BA7517"></i>朝準備ができる（ホール）
       </label>
     </div>
     <!-- 休暇希望 -->
@@ -810,6 +817,7 @@ const KIT_DEF={
   other_kit:{lunch:makeDefArr(0,0),idle:makeDefArr(0,0),dinner:makeDefArr(0,0)},
 };
 const FLO_DEF={
+  morning_hall:{lunch:makeDefArr(1,1),idle:makeDefArr(0,0),dinner:makeDefArr(0,0)},
   cashier:  {lunch:makeDefArr(2,3),idle:makeDefArr(1,1),dinner:makeDefArr(1,2)},
   hall:     {lunch:makeDefArr(2,3),idle:makeDefArr(1,1),dinner:makeDefArr(2,3)},
   leader:   {lunch:makeDefArr(1,1),idle:makeDefArr(1,1),dinner:makeDefArr(1,1)},
@@ -1021,7 +1029,7 @@ function renderStaff(){
   document.getElementById('st3').textContent=staff.filter(s=>getSkillKeys(s).includes('sobaneri')).length;
 }
 
-// SHIFT GRID
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function getCls(v){
   if(!v||!v.trim())return'';
   const m=v.trim().match(/^(練|補)?([FCDWS])?/);
@@ -1101,11 +1109,22 @@ function renderGrid(){
     const hr=wage+(isL?+cv('w-lead')||50:0);
     const cost=s.type==='seiki'?Math.round((+cv('w-sei')||210000)/4):Math.round(wkH*hr);
     totCost+=cost;totH+=wkH;if(wkH>0)totPpl++;
+    // K/Hバッジ
+    const skk=getSkillKeys(s);
+    const hasKit=skk.some(k=>KIT_KEYS.includes(k));
+    const hasFlo=skk.some(k=>['cashier','hall'].includes(k));
+    const areaBadge=hasKit&&hasFlo
+      ?`<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:#E8F0FB;color:#1A3A8B;margin-left:3px">K</span><span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--hall-bg);color:var(--hall-t);margin-left:2px">H</span>`
+      :hasKit?`<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:#E8F0FB;color:#1A3A8B;margin-left:3px">K</span>`
+      :hasFlo?`<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--hall-bg);color:var(--hall-t);margin-left:3px">H</span>`:'';
     body+=`<tr data-sid="${sid}">
       <td class="name-td">
         <div style="display:flex;align-items:center;gap:7px">
           <div style="width:26px;height:26px;border-radius:50%;background:${c.bg};color:${c.tx};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${ini(s.name)}</div>
-          <div><div style="font-weight:700;font-size:12px">${s.name}</div><div style="font-size:10px;color:var(--text3)">${tl(s.type)}</div></div>
+          <div>
+            <div style="font-weight:700;font-size:12px;display:flex;align-items:center">${s.name}${areaBadge}</div>
+            <div style="font-size:10px;color:var(--text3)">${tl(s.type)}</div>
+          </div>
         </div>
       </td>${cells}
       <td class="sum-td">
@@ -1192,6 +1211,7 @@ function genShift(){
       dayCount[fmtD(d)][p.key]={lunch:0,idle:0,dinner:0};
     });
     dayCount[fmtD(d)]['morning']={lunch:0,idle:0,dinner:0};
+    dayCount[fmtD(d)]['morning_hall']={lunch:0,idle:0,dinner:0};
   });
 
   // 必要人数取得
@@ -1247,6 +1267,8 @@ function genShift(){
     // ポジションスキルチェック
     if(posKey==='morning'){
       if(!sk.includes('morning'))return false;
+    } else if(posKey==='morning_hall'){
+      if(!(s.abilities||[]).includes('morning_hall'))return false;
     } else if(KIT_KEYS.includes(posKey)){
       // そのポジションのスキルを持っているか確認
       if(!sk.includes(posKey))return false;
@@ -1256,15 +1278,25 @@ function genShift(){
       return false;
     }
 
-    // 必要人数チェック（配置前に確認）
-    const curCount=dayCount[dateStr][posKey]?.[band]||0;
-    const reqCount=getRequired(posKey,band,dayIdx);
-    if(reqCount>0&&curCount>=reqCount)return false;
+    // 必要人数チェック（配置前に確認）— 社員はスキップ
+    if(s.type!=='seiki'){
+      const curCount=dayCount[dateStr][posKey]?.[band]||0;
+      const reqCount=getRequired(posKey,band,dayIdx);
+      if(reqCount>0&&curCount>=reqCount)return false;
+    }
 
     // 時間と時給計算
+    const lastH2=parseFloat(cv('c-last').replace(':','.'))||22.5;
+    const isSei2=s.type==='seiki';
     let start='',h=0;
-    if(posKey==='morning'&&band==='lunch'){
+    if(isSei2){
+      // 社員は常に9-Lフルシフト
+      start=isHall?'9-L':`${codeMap[posKey]||''}9-L`;
+      h=lastH2-9;
+    } else if(posKey==='morning'&&band==='lunch'){
       start='9-15';h=6;
+    } else if(posKey==='morning_hall'&&band==='lunch'){
+      start='9-14';h=5;
     }
     else if(band==='lunch'){start=isHall?'9-14':`${codeMap[posKey]||''}11-15`;h=isHall?5:4;}
     else if(band==='idle'){start=isHall?'15-18':`${codeMap[posKey]||''}15-18`;h=3;}
@@ -1280,7 +1312,7 @@ function genShift(){
   }
 
   // ポジション×時間帯×日付の順で必要人数を埋める
-  const allPos=[...KIT.map(p=>p.key),'morning',...FLO.map(p=>p.key),'other_kit','other_flo'];
+  const allPos=[...KIT.map(p=>p.key),'morning',...FLO.map(p=>p.key),'morning_hall','other_kit','other_flo'];
   const bands=['lunch','idle','dinner'];
 
   dates.forEach(d=>{
@@ -1309,21 +1341,29 @@ function genShift(){
     });
   });
 
-  // 最低出勤日数の保証（min_daysが設定されているスタッフ）
-  sorted.forEach(s=>{
-    if(!s.min_days)return;
+  // 社員：週5日を目標に最大時間内でシフト配置
+  sorted.filter(s=>s.type==='seiki').forEach(s=>{
+    const targetDays=s.min_days||5;
     const workedDays=dates.filter(d=>shiftData[s.id]?.[fmtD(d)]&&shiftData[s.id][fmtD(d)]!=='').length;
-    if(workedDays>=s.min_days)return;
-    const needed=s.min_days-workedDays;
+    if(workedDays>=targetDays)return;
+    const needed=targetDays-workedDays;
     const sk=getSkillKeys(s);
     const kitSk=sk.filter(k=>KIT_KEYS.includes(k)&&k!=='morning');
     const floSk=sk.filter(k=>['cashier','hall'].includes(k));
     const isHall=!kitSk.length&&floSk.length;
     const mainPos=kitSk.find(k=>{const lv=getSkillLevel(s,k);return lv==='normal'||lv==='hojyo';})||kitSk[0]||floSk[0];
     const mc=mainPos?codeMap[mainPos]||'':'';
-    const band=allowedBands.has('lunch')?'lunch':allowedBands.has('dinner')?'dinner':'idle';
+    const lastH=parseFloat(cv('c-last').replace(':','.'))||22.5;
+    const mh=mxH(s);
+
+    // シフトパターン：ロング（9-L）と半日（9-15）を組み合わせ
+    const longH=lastH-9;  // 例：13.5h
+    const halfH=6;        // 9-15で6h
+    const longStart=isHall?'9-L':`${mc}9-L`;
+    const halfStart=isHall?'9-14':`${mc}9-15`;
+
     let filled=0;
-    for(const d of dates){
+    for(const d of shuffle(dates)){
       if(filled>=needed)break;
       const dateStr=fmtD(d);
       if(shiftData[s.id][dateStr]!=='')continue;
@@ -1331,19 +1371,223 @@ function genShift(){
       if(!(s.avail||[0,1,2,3,4,5,6]).includes(dayIdx))continue;
       const onVac=(s.vacations||[]).some(v=>dateStr>=v.from&&dateStr<=(v.to||v.from));
       if(onVac)continue;
-      const mh=mxH(s);
-      const h=band==='lunch'?(isHall?5:4):band==='dinner'?5.5:3;
-      if(wkH[s.id]+h>mh)continue;
-      const start=isHall
-        ?(band==='lunch'?'9-14':band==='dinner'?'18-L':'15-18')
-        :(band==='lunch'?`${mc}11-15`:band==='dinner'?`${mc}17-L`:`${mc}15-18`);
+      const remaining=mh-wkH[s.id];
+      const daysLeft=needed-filled;
+      if(remaining<=0)break;
+      let start,h;
+      if(remaining>=longH&&remaining-longH>=(daysLeft-1)*halfH){
+        start=longStart;h=longH;
+      } else if(remaining>=halfH){
+        start=halfStart;h=halfH;
+      } else {
+        break;
+      }
       shiftData[s.id][dateStr]=start;
       wkH[s.id]+=h;
       filled++;
     }
   });
 
+  // 一般スタッフ：希望出勤日数（min_days）を目標に調整
+  // ルール：①0日はNG（最低1日） ②希望日数の多い人が少ない人より少なくなるのはNG
+  const minDayStaff=sorted.filter(s=>s.type!=='seiki'&&s.min_days>0);
+
+  if(minDayStaff.length>0){
+    // 希望日数の降順でソート（多い人から処理）
+    const byMinD=[...minDayStaff].sort((a,b)=>{
+      const ma=a.min_days||0;
+      const mb=b.min_days||0;
+      return mb-ma;
+    });
+
+    // 一人ずつ希望に近づける（必要人数の空きがある日に入れる）
+    byMinD.forEach(s=>{
+      const minD=s.min_days||0;
+      const workedDays=dates.filter(d=>shiftData[s.id]?.[fmtD(d)]&&shiftData[s.id][fmtD(d)]!=='').length;
+      if(workedDays>=minD)return;
+      const needed=minD-workedDays;
+      const sk=getSkillKeys(s);
+      const kitSk=sk.filter(k=>KIT_KEYS.includes(k)&&k!=='morning');
+      const floSk=sk.filter(k=>['cashier','hall'].includes(k));
+      const isHall=!kitSk.length&&floSk.length;
+      const mainPos=kitSk.find(k=>{const lv=getSkillLevel(s,k);return lv==='normal'||lv==='hojyo';})||kitSk[0]||floSk[0];
+      const mc=mainPos?codeMap[mainPos]||'':'';
+      const posKey=mainPos||(floSk.includes('cashier')?'cashier':'hall');
+      const band=allowedBands.has('lunch')?'lunch':allowedBands.has('dinner')?'dinner':'idle';
+      const isSei=s.type==='seiki';
+      const lastH=parseFloat(cv('c-last').replace(':','.'))||22.5;
+      let filled=0;
+
+      // 現在の出勤日数が少ない人を優先するため
+      // 希望比率チェック：自分より希望が少ない人より自分が少なくなってはいけない
+      function isRatioOK(){
+        const myDays=dates.filter(d=>shiftData[s.id]?.[fmtD(d)]&&shiftData[s.id][fmtD(d)]!=='').length;
+        const myMinD=s.min_days||(s.type==='seiki'?5:0);
+        for(const other of byMinD){
+          if(other.id===s.id)continue;
+          const otherMinD=other.min_days||(other.type==='seiki'?5:0);
+          if(otherMinD>=myMinD)continue;// 自分より希望が多い or 同じはOK
+          const otherDays=dates.filter(d=>shiftData[other.id]?.[fmtD(d)]&&shiftData[other.id][fmtD(d)]!=='').length;
+          if(myDays<otherDays)return false;// 希望少ない人より自分が少ない→NG
+        }
+        return true;
+      }
+
+      const shuffledDates=shuffle(dates);
+      for(const d of shuffledDates){
+        if(filled>=needed)break;
+        const dateStr=fmtD(d);
+        if(shiftData[s.id][dateStr]!=='')continue;
+        const dayIdx=getDayIdx(d);
+        if(!(s.avail||[0,1,2,3,4,5,6]).includes(dayIdx))continue;
+        const onVac=(s.vacations||[]).some(v=>dateStr>=v.from&&dateStr<=(v.to||v.from));
+        if(onVac)continue;
+        const mh=mxH(s);
+        const h=isSei?lastH-9:band==='lunch'?(isHall?5:4):band==='dinner'?5.5:3;
+        if(wkH[s.id]+h>mh)continue;
+        // 社員以外は必要人数の空きチェック
+        if(!isSei){
+          const curCnt=dayCount[dateStr][posKey]?.[band]||0;
+          const reqCnt=getRequired(posKey,band,dayIdx);
+          if(reqCnt>0&&curCnt>=reqCnt)continue;
+        }
+        const start=isSei
+          ?(isHall?'9-L':`${mc}9-L`)
+          :isHall
+            ?(band==='lunch'?'9-14':band==='dinner'?'18-L':'15-18')
+            :(band==='lunch'?`${mc}11-15`:band==='dinner'?`${mc}17-L`:`${mc}15-18`);
+        shiftData[s.id][dateStr]=start;
+        wkH[s.id]+=h;
+        if(!isSei){
+          if(!dayCount[dateStr][posKey])dayCount[dateStr][posKey]={lunch:0,idle:0,dinner:0};
+          dayCount[dateStr][posKey][band]=(dayCount[dateStr][posKey][band]||0)+1;
+        }
+        filled++;
+      }
+
+      // 最低1日保証：まだ0日なら必要人数を無視してでも1日入れる
+      const finalDays=dates.filter(d=>shiftData[s.id]?.[fmtD(d)]&&shiftData[s.id][fmtD(d)]!=='').length;
+      if(finalDays===0){
+        for(const d of shuffle(dates)){
+          const dateStr=fmtD(d);
+          if(shiftData[s.id][dateStr]!=='')continue;
+          const dayIdx=getDayIdx(d);
+          if(!(s.avail||[0,1,2,3,4,5,6]).includes(dayIdx))continue;
+          const onVac=(s.vacations||[]).some(v=>dateStr>=v.from&&dateStr<=(v.to||v.from));
+          if(onVac)continue;
+          const mh=mxH(s);
+          const h=band==='lunch'?(isHall?5:4):band==='dinner'?5.5:3;
+          if(wkH[s.id]+h>mh)continue;
+          const start=isHall
+            ?(band==='lunch'?'9-14':band==='dinner'?'18-L':'15-18')
+            :(band==='lunch'?`${mc}11-15`:band==='dinner'?`${mc}17-L`:`${mc}15-18`);
+          shiftData[s.id][dateStr]=start;
+          wkH[s.id]+=h;
+          break;
+        }
+      }
+    });
+  }
+
   renderGrid();
+
+  // ── ポジション振り替え（不足を補う） ──
+  dates.forEach(d=>{
+    const dayIdx=getDayIdx(d);
+    const dateStr=fmtD(d);
+    checkPos.forEach(neededPos=>{
+      bands.forEach(band=>{
+        if(!allowedBands.has(band))return;
+        const required=getRequired(neededPos,band,dayIdx);
+        if(required<=0)return;
+        if((dayCount[dateStr][neededPos]?.[band]||0)>=required)return;
+
+        for(const s of sorted){
+          if((dayCount[dateStr][neededPos]?.[band]||0)>=required)break;
+          const sk=getSkillKeys(s);
+          if(KIT_KEYS.includes(neededPos)&&!sk.includes(neededPos))continue;
+          if(['cashier','hall','leader'].includes(neededPos)&&!sk.includes(neededPos))continue;
+          if(!(s.avail||[0,1,2,3,4,5,6]).includes(dayIdx))continue;
+          const onVac=(s.vacations||[]).some(v=>dateStr>=v.from&&dateStr<=(v.to||v.from));
+          if(onVac)continue;
+
+          const dateShift=shiftData[s.id]?.[dateStr];
+
+          // ① すでにこの日入っている→ポジションコードだけ変更
+          if(dateShift&&dateShift.trim()){
+            const curCode=dateShift.trim().match(/^(練|補)?([FCDWS])?/)?.[2]||'';
+            const curPosMap={F:'fryer',C:'conro',D:'dishup',W:'dishwash',S:'sobaneri'};
+            const curPos=curPosMap[curCode]||'hall';
+            if(curPos===neededPos)continue;
+            const curRequired=getRequired(curPos,band,dayIdx);
+            const curActual=dayCount[dateStr][curPos]?.[band]||0;
+            if(curRequired>0&&curActual<=curRequired)continue;
+            const newCode=codeMap[neededPos]||'';
+            const isHallNew=['cashier','hall','leader'].includes(neededPos);
+            const timeMatch=dateShift.match(/(\d+(?:\.\d+)?-(?:L|\d+(?:\.\d+)?))/);
+            if(!timeMatch)continue;
+            const timeStr=timeMatch[1];
+            shiftData[s.id][dateStr]=isHallNew?timeStr:`${newCode}${timeStr}`;
+            if(!dayCount[dateStr][neededPos])dayCount[dateStr][neededPos]={lunch:0,idle:0,dinner:0};
+            dayCount[dateStr][neededPos][band]=(dayCount[dateStr][neededPos][band]||0)+1;
+            if(dayCount[dateStr][curPos]?.[band])dayCount[dateStr][curPos][band]--;
+            continue;
+          }
+
+          // ② この日入っていない→別の曜日から移動できるか探す
+          // そのスタッフが入っている日の中で「余っている日」を探す
+          const movableDate=dates.find(od=>{
+            const oDateStr=fmtD(od);
+            if(oDateStr===dateStr)return false;
+            const oShift=shiftData[s.id]?.[oDateStr];
+            if(!oShift||!oShift.trim())return false;
+            // 移動元の日でそのポジションが余っているか確認
+            const oCode=oShift.trim().match(/^(練|補)?([FCDWS])?/)?.[2]||'';
+            const oPosMap={F:'fryer',C:'conro',D:'dishup',W:'dishwash',S:'sobaneri'};
+            const oPos=oPosMap[oCode]||'hall';
+            const oDayIdx=getDayIdx(od);
+            const oBand=allowedBands.has('lunch')?'lunch':allowedBands.has('dinner')?'dinner':'idle';
+            const oRequired=getRequired(oPos,oBand,oDayIdx);
+            const oActual=dayCount[oDateStr][oPos]?.[oBand]||0;
+            // 移動元が余っている（必要人数より多い）場合のみ移動可
+            return oRequired<=0||(oActual>oRequired);
+          });
+
+          if(!movableDate)continue;
+
+          // 移動実行
+          const moveDateStr=fmtD(movableDate);
+          const moveBand=allowedBands.has('lunch')?'lunch':allowedBands.has('dinner')?'dinner':'idle';
+          const oShift=shiftData[s.id][moveDateStr];
+          const oCode=oShift.trim().match(/^(練|補)?([FCDWS])?/)?.[2]||'';
+          const oPosMap={F:'fryer',C:'conro',D:'dishup',W:'dishwash',S:'sobaneri'};
+          const oPos=oPosMap[oCode]||'hall';
+          const oDayIdx=getDayIdx(movableDate);
+
+          // 移動先のシフト時間を生成
+          const isHallNew=['cashier','hall','leader'].includes(neededPos);
+          const newCode=codeMap[neededPos]||'';
+          const newShift=isHallNew
+            ?(band==='lunch'?'9-14':band==='dinner'?'18-L':'15-18')
+            :(band==='lunch'?`${newCode}11-15`:band==='dinner'?`${newCode}17-L`:`${newCode}15-18`);
+          const newH=band==='lunch'?(isHallNew?5:4):band==='dinner'?5.5:3;
+          const oldH=parseH(oShift);
+
+          // 週の労働時間を調整
+          wkH[s.id]=wkH[s.id]-oldH+newH;
+
+          // 移動元をクリア
+          shiftData[s.id][moveDateStr]='';
+          if(dayCount[moveDateStr][oPos]?.[moveBand])dayCount[moveDateStr][oPos][moveBand]--;
+
+          // 移動先に配置
+          shiftData[s.id][dateStr]=newShift;
+          if(!dayCount[dateStr][neededPos])dayCount[dateStr][neededPos]={lunch:0,idle:0,dinner:0};
+          dayCount[dateStr][neededPos][band]=(dayCount[dateStr][neededPos][band]||0)+1;
+        }
+      });
+    });
+  });
 
   // 人員不足チェック — セクションに応じた対象ポジションのみ
   const checkPos=[];
@@ -1353,6 +1597,7 @@ function genShift(){
   }
   if(curSec==='all'||curSec.startsWith('hall')){
     FLO.forEach(p=>checkPos.push(p.key));
+    checkPos.push('morning_hall');
   }
 
   const shortages=[];
@@ -1540,7 +1785,7 @@ function initPosTbls(){
     document.getElementById(id).innerHTML=html;
   }
   rows(KIT,KIT_DEF,'kt-body',[{key:'other_kit',lbl:'その他'}]);
-  rows(FLO,FLO_DEF,'fl-body',[{key:'other_flo',lbl:'その他'}]);
+  rows(FLO,FLO_DEF,'fl-body',[{key:'morning_hall',lbl:'朝準備（ホール）'},{key:'other_flo',lbl:'その他'}]);
 }
 function updPosDay(pos,band,dayIdx,val){
   if(KIT_DEF[pos]){if(!KIT_DEF[pos][band])KIT_DEF[pos][band]=[0,0,0,0,0,0,0];KIT_DEF[pos][band][dayIdx]=+val;}
@@ -1637,11 +1882,33 @@ function restoreDayAlso(days){
     b.classList.toggle('on',(days||[]).includes(+b.dataset.d));
   });
 }
+function toggleHallMorning(){
+  const cb=document.getElementById('skill-hall-morning');
+  if(!cb)return;
+  cb.checked=!cb.checked;
+  onHallMorningChange(cb);
+}
 function toggleSobaSkill(){
   const cb=document.getElementById('skill-sobaneri');
   if(!cb)return;
   cb.checked=!cb.checked;
   onSobaSkillChange(cb);
+}
+function onHallMorningChange(cb){
+  const label=document.getElementById('hall-morning-label');
+  const box=document.getElementById('hall-morning-ck-box');
+  const on=cb.checked;
+  if(label){
+    label.style.borderColor=on?'#BA7517':'var(--border2)';
+    label.style.background=on?'#FFF8E8':'var(--surface2)';
+    label.style.color=on?'#7C5000':'var(--text3)';
+  }
+  if(box){
+    box.style.borderColor=on?'#BA7517':'var(--text3)';
+    box.style.background=on?'#BA7517':'transparent';
+    box.style.color='#fff';
+    box.textContent=on?'✓':'';
+  }
 }
 function onSobaSkillChange(cb){
   const label=document.getElementById('soba-skill-label');
@@ -1685,7 +1952,7 @@ function getSelPref(){
   const base=document.querySelector('[data-pref].on')?.dataset.pref||'any';
   const idle=document.getElementById('pref-idle-opt')?.checked||false;
   if(!idle)return base;
-  if(base==='any')return'any';
+  if(base==='any')return'idle';// どちらでも+アイドル=アイドルのみ
   if(base==='day')return'day_idle';
   if(base==='night')return'idle_night';
   return base;
@@ -1694,7 +1961,7 @@ function restorePref(pref){
   const p=pref||'any';
   const baseMap={'any':'any','day':'day','night':'night','day_idle':'day','idle_night':'night','idle':'any'};
   setPref(baseMap[p]||'any');
-  const idleOn=p==='day_idle'||p==='idle_night';
+  const idleOn=p==='day_idle'||p==='idle_night'||p==='idle';
   const cb=document.getElementById('pref-idle-opt');
   if(cb){cb.checked=idleOn;onIdleOptChange(cb);}
 }
@@ -1739,11 +2006,24 @@ function restoreLevelBtns(skillsArr){
     }
   });
 }
+function colorField(el){
+  if(el.value&&el.value.trim()!==''){
+    el.classList.add('has-val');el.classList.remove('empty-val');
+  } else {
+    el.classList.remove('has-val');el.classList.add('empty-val');
+  }
+}
+function colorFields(){
+  ['f-password','f-wage','f-monthly','f-maxh','f-mind'].forEach(id=>{
+    const el=document.getElementById(id);if(el)colorField(el);
+  });
+}
 function onTypeChange(type){
   const isSei=type==='seiki';
   document.getElementById('wage-field').style.display=isSei?'none':'block';
   document.getElementById('monthly-field').style.display=isSei?'block':'none';
-}function openAdd(){
+}
+function openAdd(){
   document.getElementById('mod-title').textContent='スタッフ追加';
   document.getElementById('eid').value='';
   document.getElementById('f-name').value='';
@@ -1766,13 +2046,16 @@ function onTypeChange(type){
   // 蕎麦コネリセット
   const sobaCb=document.getElementById('skill-sobaneri');
   if(sobaCb){sobaCb.checked=false;onSobaSkillChange(sobaCb);}
+  const hallMCb=document.getElementById('skill-hall-morning');
+  if(hallMCb){hallMCb.checked=false;onHallMorningChange(hallMCb);}
+  colorFields();
   document.getElementById('mod-staff').classList.add('open');}
 function editStaff(id){
   const s=staff.find(x=>x.id===id);if(!s)return;
   document.getElementById('mod-title').textContent='スタッフ編集';
   document.getElementById('eid').value=id;
   document.getElementById('f-name').value=s.name;
-  const t=s.type==='seiki'?'seiki':'general';
+  const t=s.type||'general';
   document.getElementById('f-type').value=t;
   document.getElementById('f-wage').value=t!=='seiki'?(s.wage||''):'';
   document.getElementById('f-monthly').value=t==='seiki'?(s.wage||''):'';
@@ -1796,6 +2079,10 @@ function editStaff(id){
   const sobaCb=document.getElementById('skill-sobaneri');
   const hasSoba=(s.abilities||[]).includes('sobaneri')||(s.skills||[]).some(sk=>(typeof sk==='string'?sk:sk.key)==='sobaneri');
   if(sobaCb){sobaCb.checked=hasSoba;onSobaSkillChange(sobaCb);}
+  const hallMCb=document.getElementById('skill-hall-morning');
+  const hasHallM=(s.abilities||[]).includes('morning_hall');
+  if(hallMCb){hallMCb.checked=hasHallM;onHallMorningChange(hallMCb);}
+  colorFields();
   document.getElementById('del-btn').style.display='inline-flex';
   document.getElementById('mod-staff').classList.add('open');
 }
@@ -1831,7 +2118,8 @@ async function saveStaff(){
   const avail=[...document.querySelectorAll('#mod-days .db.on')].map(b=>+b.dataset.d);
   const pref=getSelPref();
   const hasSoba=document.getElementById('skill-sobaneri')?.checked||false;
-  const abilities=hasSoba?['sobaneri']:[];
+  const hasHallM=document.getElementById('skill-hall-morning')?.checked||false;
+  const abilities=[...(hasSoba?['sobaneri']:[]),...(hasHallM?['morning_hall']:[])];
   const vacations=getVacations();
   const day_also=getDayAlso();
   const obj={name,type,max_h,min_days,wage,password,skills:skillsArr,abilities,avail,pref,vacations,day_also};
