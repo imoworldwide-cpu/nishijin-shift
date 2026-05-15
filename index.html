@@ -307,12 +307,27 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
         <button class="login-tab on" onclick="setLR('manager')">店長</button>
         <button class="login-tab" onclick="setLR('staff')">スタッフ</button>
       </div>
-      <div class="lf"><label>パスワード</label>
-        <input type="password" id="lpw" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter')doLogin()">
+      <!-- 店長 -->
+      <div id="login-manager-area">
+        <div class="lf"><label>パスワード</label>
+          <input type="password" id="lpw" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+      </div>
+      <!-- スタッフ個人 -->
+      <div id="login-staff-area" style="display:none">
+        <div class="lf"><label>名前</label>
+          <select id="l-staff-name" style="width:100%;padding:12px 13px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit;-webkit-appearance:none">
+            <option value="">-- 名前を選んでください --</option>
+          </select>
+        </div>
+        <div class="lf"><label>パスワード</label>
+          <input type="password" id="lpw-staff" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
       </div>
       <button class="login-btn" onclick="doLogin()">ログイン</button>
       <div class="login-err" id="lerr">パスワードが違います</div>
-      <div class="login-hint">店長: <strong>west2024</strong> ／ スタッフ: <strong>nishijin</strong></div>
+      <div class="login-hint" id="login-hint-mgr">店長パスワード: <strong>west2024</strong></div>
+      <div class="login-hint" id="login-hint-st" style="display:none">名前を選んでパスワードを入力してください</div>
     </div>
   </div>
 </div>
@@ -547,6 +562,36 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
         </div>
       </div>
 
+      <!-- スタッフ用マイページ -->
+      <div class="pg" id="pg-mypage">
+        <div class="card">
+          <div class="card-title"><i class="ti ti-user"></i>マイ設定</div>
+          <p style="font-size:12px;color:var(--text3);margin-bottom:14px">自分の勤務希望を設定してください。店長がシフトを組む時に反映されます。</p>
+          <div class="sec-div">勤務可能曜日 <span style="font-weight:400;font-size:10px;color:var(--text3)">（青 = 出勤可）</span></div>
+          <div class="day-row" id="my-days" style="margin-bottom:12px">
+            <button type="button" class="db on" data-d="0">月</button><button type="button" class="db on" data-d="1">火</button>
+            <button type="button" class="db on" data-d="2">水</button><button type="button" class="db on" data-d="3">木</button>
+            <button type="button" class="db on" data-d="4">金</button><button type="button" class="db on" data-d="5">土</button>
+            <button type="button" class="db on" data-d="6">日</button>
+          </div>
+          <div class="sec-div">昼も入れる曜日 <span style="font-weight:400;font-size:10px;color:var(--text3)">（青 = 昼も可）</span></div>
+          <div class="day-row" id="my-day-also" style="margin-bottom:12px">
+            <button type="button" class="db" data-d="0">月</button><button type="button" class="db" data-d="1">火</button>
+            <button type="button" class="db" data-d="2">水</button><button type="button" class="db" data-d="3">木</button>
+            <button type="button" class="db" data-d="4">金</button><button type="button" class="db" data-d="5">土</button>
+            <button type="button" class="db" data-d="6">日</button>
+          </div>
+          <div class="sec-div">休暇希望日 <span style="font-weight:400;font-size:10px;color:var(--text3)">（シフトに入らない日）</span></div>
+          <div id="my-vacation-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+          <button type="button" class="btn" onclick="addMyVacationRow()" style="width:100%;justify-content:center;margin-bottom:16px">
+            <i class="ti ti-plus"></i>休暇希望を追加
+          </button>
+          <button class="btn p" onclick="saveMyPage()" style="width:100%;justify-content:center">
+            <i class="ti ti-check"></i>保存する
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
   <nav class="bottom-nav">
@@ -556,6 +601,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
       <button class="bn-btn" data-pg="shift" onclick="go('shift')"><i class="ti ti-calendar"></i><span>シフト</span></button>
       <button class="bn-btn" data-pg="pay" onclick="go('pay')"><i class="ti ti-coin"></i><span>給与</span></button>
       <button class="bn-btn" data-pg="line" onclick="go('line')"><i class="ti ti-message-circle"></i><span>LINE</span></button>
+      <button class="bn-btn" data-pg="mypage" id="bn-mypage" onclick="go('mypage')" style="display:none"><i class="ti ti-user"></i><span>マイページ</span></button>
     </div>
   </nav>
 </div>
@@ -575,6 +621,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
         <option value="shahou">社保付きスタッフ</option>
         <option value="seiki">社員</option>
       </select>
+    </div>
+    <div class="mf"><label>個人パスワード（スタッフがログインに使用）</label>
+      <input type="text" id="f-password" placeholder="例: nishijin123" autocomplete="off">
     </div>
     <div class="mf" id="wage-field"><label>時給（空欄で設定の時給を使用）</label><input type="number" id="f-wage" placeholder="例: 980"></div>
     <div class="mf" id="monthly-field" style="display:none"><label>月給（円）</label><input type="number" id="f-monthly" placeholder="例: 210000"></div>
@@ -622,6 +671,18 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
         <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px solid var(--text3);border-radius:4px;font-size:14px;flex-shrink:0;transition:all .15s" id="idle-ck-box"></span>
         <i class="ti ti-coffee" style="font-size:16px;color:#5F5E5A"></i>アイドルタイム（15〜18時）も入れる
       </label>
+      <!-- 夜希望でも昼も入れる曜日 -->
+      <div id="day-also-wrap" style="margin-top:8px">
+        <div style="font-size:11px;color:var(--text3);font-weight:700;margin-bottom:5px;padding:4px 2px">
+          <i class="ti ti-sun" style="color:#BA7517"></i> 昼も入れる曜日（オプション・青=昼も可）
+        </div>
+        <div class="day-row" id="mod-day-also">
+          <button type="button" class="db" data-d="0">月</button><button type="button" class="db" data-d="1">火</button>
+          <button type="button" class="db" data-d="2">水</button><button type="button" class="db" data-d="3">木</button>
+          <button type="button" class="db" data-d="4">金</button><button type="button" class="db" data-d="5">土</button>
+          <button type="button" class="db" data-d="6">日</button>
+        </div>
+      </div>
       <div class="sec-div" style="margin-top:12px">スキル</div>
       <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;font-size:13px;font-weight:700;color:var(--text3);background:var(--surface2);transition:all .15s" id="soba-skill-label" onclick="toggleSobaSkill()">
         <input type="checkbox" id="skill-sobaneri" style="display:none">
@@ -629,6 +690,12 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
         <i class="ti ti-noodles" style="font-size:16px;color:var(--soba-t)"></i>蕎麦コネができる
       </label>
     </div>
+    <!-- 休暇希望 -->
+    <div class="sec-div">休暇希望日 <span style="font-weight:400;font-size:10px;color:var(--text3)">（シフト生成時に除外）</span></div>
+    <div class="mf" id="vacation-list" style="display:flex;flex-direction:column;gap:6px"></div>
+    <button type="button" class="btn" onclick="addVacationRow()" style="width:100%;justify-content:center;margin-bottom:4px">
+      <i class="ti ti-plus"></i>休暇希望を追加
+    </button>
     <div class="macts">
       <button class="btn danger" id="del-btn" onclick="delStaff()" style="display:none"><i class="ti ti-trash"></i>削除</button>
       <button class="btn" onclick="closeMod()">キャンセル</button>
@@ -643,28 +710,74 @@ const SUPA_URL='https://nmtgwbfjueljcdjfkngr.supabase.co';
 const SUPA_KEY='sb_publishable_wZy_G-2zy5wxKS27HstXvA_FBbckimh';
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 
-const PASS={manager:'west2024',staff:'nishijin'};
-let role=null,lrole='manager';
-function setLR(r){lrole=r;document.querySelectorAll('.login-tab').forEach((b,i)=>b.classList.toggle('on',['manager','staff'][i]===r));}
-function doLogin(){
-  const pw=document.getElementById('lpw').value;
-  const err=document.getElementById('lerr');
-  if(pw===PASS[lrole]){
-    role=lrole;
-    document.getElementById('login-screen').style.display='none';
-    document.getElementById('app').classList.remove('hidden');
-    document.getElementById('tbrole').textContent=role==='manager'?'店長':'スタッフ';
-    applyRole();init();
-  } else {err.style.display='block';setTimeout(()=>err.style.display='none',2000);}
+const PASS={manager:'west2024'};
+let role=null,lrole='manager',currentStaffId=null;
+function setLR(r){
+  lrole=r;
+  document.querySelectorAll('.login-tab').forEach((b,i)=>b.classList.toggle('on',['manager','staff'][i]===r));
+  document.getElementById('login-manager-area').style.display=r==='manager'?'block':'none';
+  document.getElementById('login-staff-area').style.display=r==='staff'?'block':'none';
+  document.getElementById('login-hint-mgr').style.display=r==='manager'?'block':'none';
+  document.getElementById('login-hint-st').style.display=r==='staff'?'block':'none';
+  if(r==='staff')populateStaffSelect();
 }
-function doLogout(){role=null;document.getElementById('login-screen').style.display='flex';document.getElementById('app').classList.add('hidden');document.getElementById('lpw').value='';}
+async function populateStaffSelect(){
+  const sel=document.getElementById('l-staff-name');
+  sel.innerHTML='<option value="">-- 名前を選んでください --</option>';
+  const {data}=await sb.from('staff').select('id,name').order('name');
+  if(data)data.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.name;sel.appendChild(o);});
+}
+async function doLogin(){
+  const err=document.getElementById('lerr');
+  if(lrole==='manager'){
+    const pw=document.getElementById('lpw').value;
+    if(pw===PASS.manager){role='manager';currentStaffId=null;loginSuccess();}
+    else showLoginErr('パスワードが違います');
+  } else {
+    const sid=document.getElementById('l-staff-name').value;
+    const pw=document.getElementById('lpw-staff').value;
+    if(!sid){showLoginErr('名前を選んでください');return;}
+    const {data}=await sb.from('staff').select('id,name,password').eq('id',sid).maybeSingle();
+    if(data&&data.password&&data.password===pw){role='staff';currentStaffId=sid;loginSuccess();}
+    else showLoginErr('パスワードが違います');
+  }
+}
+function showLoginErr(msg){
+  const err=document.getElementById('lerr');
+  err.textContent=msg;err.style.display='block';
+  setTimeout(()=>err.style.display='none',2500);
+}
+function loginSuccess(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('tbrole').textContent=role==='manager'?'店長':'スタッフ';
+  applyRole();init();
+}
+function doLogout(){
+  role=null;currentStaffId=null;lrole='manager';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('lpw').value='';
+  if(document.getElementById('lpw-staff'))document.getElementById('lpw-staff').value='';
+  if(document.getElementById('l-staff-name'))document.getElementById('l-staff-name').value='';
+  // 店長タブに戻す
+  setLR('manager');
+}
 function applyRole(){
   const mgr=role==='manager';
+  const isStaff=role==='staff';
   document.getElementById('tbacts').style.display=mgr?'flex':'none';
   document.getElementById('gen-btn').style.display=mgr?'inline-flex':'none';
-  // スタッフには条件設定・給与・LINE・シフト操作ボタンを非表示
-  if(!mgr){
-    document.querySelectorAll('[data-pg="cond"],[data-pg="pay"],[data-pg="line"]').forEach(b=>b.style.display='none');
+  // 全ナビをいったん表示に戻す
+  document.querySelectorAll('[data-pg]').forEach(b=>b.style.display='');
+  const myBtn=document.getElementById('bn-mypage');
+  if(isStaff){
+    // スタッフはマイページ・シフト閲覧のみ
+    document.querySelectorAll('[data-pg="cond"],[data-pg="pay"],[data-pg="line"],[data-pg="staff"]').forEach(b=>b.style.display='none');
+    if(myBtn)myBtn.style.display='';
+  } else {
+    // 店長はマイページ非表示
+    if(myBtn)myBtn.style.display='none';
   }
 }
 
@@ -1018,7 +1131,16 @@ function genShift(){
     dates.forEach(d=>{
       const dayIdx=(d.getDay()+6)%7;
       if(!av.includes(dayIdx)){shiftData[s.id][fmtD(d)]='';return;}
+      // 休暇希望チェック
+      const dateStr=fmtD(d);
+      const onVac=(s.vacations||[]).some(v=>{
+        const from=v.from,to=v.to||v.from;
+        return dateStr>=from&&dateStr<=to;
+      });
+      if(onVac){shiftData[s.id][fmtD(d)]='';return;}
       if(wkH[s.id]>=mh){shiftData[s.id][fmtD(d)]='';return;}
+      // dayAlso: 夜希望でもこの曜日は昼も可
+      const canAlsoDay=(s.day_also||[]).includes(dayIdx);
 
       let posCode='';
       if(kitSk.includes('fryer'))posCode='F';
@@ -1034,17 +1156,18 @@ function genShift(){
       }
       const isHall=!kitSk.length&&floSk.length;
 
-      // pref別にシフト帯を決定
-      if(prefIncludes(pref,'idle')&&!prefIncludes(pref,'day')&&!prefIncludes(pref,'night')&&wkH[s.id]+3<=mh){
+      // pref別にシフト帯を決定（dayAlsoがある場合は昼も可）
+      const effPref=(canAlsoDay&&pref==='night')?'any':pref;
+      if(prefIncludes(effPref,'idle')&&!prefIncludes(effPref,'day')&&!prefIncludes(effPref,'night')&&wkH[s.id]+3<=mh){
         shiftData[s.id][fmtD(d)]=isHall?`15-18`:`${posCode}15-18`;
         wkH[s.id]+=3;
-      } else if(prefIncludes(pref,'day')&&wkH[s.id]+5<=mh){
+      } else if(prefIncludes(effPref,'day')&&wkH[s.id]+5<=mh){
         shiftData[s.id][fmtD(d)]=isHall?`9-14`:`${posCode}9-15`;
         wkH[s.id]+=isHall?5:6;
-      } else if(prefIncludes(pref,'idle')&&wkH[s.id]+3<=mh){
+      } else if(prefIncludes(effPref,'idle')&&wkH[s.id]+3<=mh){
         shiftData[s.id][fmtD(d)]=isHall?`15-18`:`${posCode}15-18`;
         wkH[s.id]+=3;
-      } else if(prefIncludes(pref,'night')&&wkH[s.id]+5.5<=mh){
+      } else if(prefIncludes(effPref,'night')&&wkH[s.id]+5.5<=mh){
         shiftData[s.id][fmtD(d)]=isHall?`18-L`:`${posCode}17-L`;
         wkH[s.id]+=5.5;
       } else {
@@ -1133,7 +1256,8 @@ function go(name){
   document.querySelectorAll('.rail-btn,[data-pg]').forEach(b=>b.classList.remove('active'));
   document.getElementById('pg-'+name).classList.add('on');
   document.querySelectorAll(`[data-pg="${name}"]`).forEach(b=>b.classList.add('active'));
-  const T={staff:'スタッフ管理',cond:'勤務条件設定',shift:'シフト表',pay:'給与・月次集計',line:'LINE通知設定'};
+  const T={staff:'スタッフ管理',cond:'勤務条件設定',shift:'シフト表',pay:'給与・月次集計',line:'LINE通知設定',mypage:'マイページ'};
+  if(name==='mypage')loadMyPage();
   document.getElementById('tbtitle').textContent=T[name]||name;
   document.getElementById('tbacts').innerHTML=name==='staff'&&role==='manager'?'<button class="btn p" onclick="openAdd()"><i class="ti ti-plus"></i>追加</button>':'';
   if(name==='shift'){renderWkLbl();loadShift();}
@@ -1221,6 +1345,39 @@ function getSelectedSkills(){
 // 希望シフト帯
 function setPref(p){
   document.querySelectorAll('[data-pref]').forEach(b=>b.classList.toggle('on',b.dataset.pref===p));
+}
+
+// 休暇希望
+function addVacationRow(from='',to=''){
+  const list=document.getElementById('vacation-list');
+  const div=document.createElement('div');
+  div.style.cssText='display:flex;align-items:center;gap:6px;';
+  div.innerHTML=`
+    <input type="date" class="vac-from" value="${from}" style="flex:1;padding:8px;border:1.5px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--surface);color:var(--text);font-family:inherit">
+    <span style="color:var(--text3);font-size:12px;white-space:nowrap">〜</span>
+    <input type="date" class="vac-to" value="${to}" style="flex:1;padding:8px;border:1.5px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--surface);color:var(--text);font-family:inherit">
+    <button type="button" onclick="this.parentNode.remove()" style="padding:7px 9px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);cursor:pointer;color:var(--text3);font-size:12px"><i class="ti ti-x"></i></button>`;
+  list.appendChild(div);
+}
+function getVacations(){
+  return [...document.querySelectorAll('#vacation-list > div')].map(row=>{
+    const from=row.querySelector('.vac-from').value;
+    const to=row.querySelector('.vac-to').value||from;
+    return from?{from,to}:null;
+  }).filter(Boolean);
+}
+function restoreVacations(vacations){
+  const list=document.getElementById('vacation-list');
+  list.innerHTML='';
+  (vacations||[]).forEach(v=>addVacationRow(v.from,v.to||v.from));
+}
+function getDayAlso(){
+  return [...document.querySelectorAll('#mod-day-also .db.on')].map(b=>+b.dataset.d);
+}
+function restoreDayAlso(days){
+  document.querySelectorAll('#mod-day-also .db').forEach(b=>{
+    b.classList.toggle('on',(days||[]).includes(+b.dataset.d));
+  });
 }
 function toggleSobaSkill(){
   const cb=document.getElementById('skill-sobaneri');
@@ -1337,12 +1494,15 @@ function onTypeChange(type){
   document.getElementById('f-wage').value='';
   document.getElementById('f-monthly').value='';
   document.getElementById('f-maxh').value='';
+  document.getElementById('f-password').value='';
   clearLevelBtns();
   document.querySelectorAll('#mod-days .db').forEach(b=>b.classList.add('on'));
   document.getElementById('del-btn').style.display='none';
   onTypeChange('general');
   setArea('both');
   restorePref('any');
+  restoreVacations([]);
+  restoreDayAlso([]);
   // 蕎麦コネリセット
   const sobaCb=document.getElementById('skill-sobaneri');
   if(sobaCb){sobaCb.checked=false;onSobaSkillChange(sobaCb);}
@@ -1357,6 +1517,7 @@ function editStaff(id){
   document.getElementById('f-wage').value=t!=='seiki'?(s.wage||''):'';
   document.getElementById('f-monthly').value=t==='seiki'?(s.wage||''):'';
   document.getElementById('f-maxh').value=s.max_h||'';
+  document.getElementById('f-password').value=s.password||'';
   onTypeChange(t);
   restoreLevelBtns(s.skills);
   const av=s.avail||[0,1,2,3,4,5,6];
@@ -1366,6 +1527,8 @@ function editStaff(id){
   const hf=skKeys.some(k=>['cashier','hall'].includes(k));
   setArea(hk&&hf?'both':hk?'kitchen':'hall');
   restorePref(s.pref||'any');
+  restoreVacations(s.vacations||[]);
+  restoreDayAlso(s.day_also||[]);
   // 蕎麦コネスキル復元
   const sobaCb=document.getElementById('skill-sobaneri');
   const hasSoba=(s.abilities||[]).includes('sobaneri')||(s.skills||[]).some(sk=>(typeof sk==='string'?sk:sk.key)==='sobaneri');
@@ -1387,17 +1550,57 @@ async function saveStaff(){
   const isSei=type==='seiki';
   const wage=isSei?(+document.getElementById('f-monthly').value||null):(+document.getElementById('f-wage').value||null);
   const max_h=+document.getElementById('f-maxh').value||null;
+  const password=document.getElementById('f-password').value.trim()||null;
   const avail=[...document.querySelectorAll('#mod-days .db.on')].map(b=>+b.dataset.d);
   const pref=getSelPref();
-  // 蕎麦コネはabilitiesとして保存
   const hasSoba=document.getElementById('skill-sobaneri')?.checked||false;
   const abilities=hasSoba?['sobaneri']:[];
-  const obj={name,type,max_h,wage,skills:skillsArr,abilities,avail,pref};
+  const vacations=getVacations();
+  const day_also=getDayAlso();
+  const obj={name,type,max_h,wage,password,skills:skillsArr,abilities,avail,pref,vacations,day_also};
   const eid=document.getElementById('eid').value;
   try{await saveStaffDB(obj,eid||null);closeMod();toast(eid?'更新しました':'追加しました');}catch(e){alert('保存失敗: '+e.message);}
 }
 function closeMod(){document.getElementById('mod-staff').classList.remove('open');}
 function saveCond(){renderStaff();toast('条件を保存しました');}
+
+// ── マイページ（スタッフ個人用） ──
+function addMyVacationRow(from='',to=''){
+  const list=document.getElementById('my-vacation-list');
+  const div=document.createElement('div');
+  div.style.cssText='display:flex;align-items:center;gap:6px;';
+  div.innerHTML=`
+    <input type="date" class="my-vac-from" value="${from}" style="flex:1;padding:8px;border:1.5px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--surface);color:var(--text);font-family:inherit">
+    <span style="color:var(--text3);font-size:12px;white-space:nowrap">〜</span>
+    <input type="date" class="my-vac-to" value="${to}" style="flex:1;padding:8px;border:1.5px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--surface);color:var(--text);font-family:inherit">
+    <button type="button" onclick="this.parentNode.remove()" style="padding:7px 9px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);cursor:pointer;color:var(--text3)"><i class="ti ti-x"></i></button>`;
+  list.appendChild(div);
+}
+async function loadMyPage(){
+  if(!currentStaffId)return;
+  const {data}=await sb.from('staff').select('avail,day_also,vacations').eq('id',currentStaffId).maybeSingle();
+  if(!data)return;
+  const av=data.avail||[0,1,2,3,4,5,6];
+  document.querySelectorAll('#my-days .db').forEach(b=>b.classList.toggle('on',av.includes(+b.dataset.d)));
+  const da=data.day_also||[];
+  document.querySelectorAll('#my-day-also .db').forEach(b=>b.classList.toggle('on',da.includes(+b.dataset.d)));
+  const list=document.getElementById('my-vacation-list');
+  list.innerHTML='';
+  (data.vacations||[]).forEach(v=>addMyVacationRow(v.from,v.to||v.from));
+}
+async function saveMyPage(){
+  if(!currentStaffId)return;
+  const avail=[...document.querySelectorAll('#my-days .db.on')].map(b=>+b.dataset.d);
+  const day_also=[...document.querySelectorAll('#my-day-also .db.on')].map(b=>+b.dataset.d);
+  const vacations=[...document.querySelectorAll('#my-vacation-list > div')].map(row=>{
+    const from=row.querySelector('.my-vac-from').value;
+    const to=row.querySelector('.my-vac-to').value||from;
+    return from?{from,to}:null;
+  }).filter(Boolean);
+  const {error}=await sb.from('staff').update({avail,day_also,vacations}).eq('id',currentStaffId);
+  if(error)alert('保存失敗: '+error.message);
+  else toast('保存しました！');
+}
 
 function bindDays(cid,store){
   document.getElementById(cid).querySelectorAll('.db').forEach(b=>{
@@ -1620,11 +1823,12 @@ async function seedInitialData(){
 
 async function init(){
   initPosTbls();initModalLists();
-  bindDays('we-days',weDays);bindDays('mod-days',null);
+  bindDays('we-days',weDays);bindDays('mod-days',null);bindDays('mod-day-also',null);
   renderWkLbl();
   await seedInitialData();
   await loadStaff();
-  if(role==='staff')go('shift');
+  if(role==='staff'){go('mypage');bindDays('my-days',null);bindDays('my-day-also',null);}
+  else bindDays('my-days',null);
 }
 </script>
 </body>
