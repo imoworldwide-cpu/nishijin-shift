@@ -631,6 +631,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     <div class="mf" id="wage-field"><label>時給（空欄で設定の時給を使用）</label><input type="number" id="f-wage" placeholder="例: 980" oninput="colorField(this)"></div>
     <div class="mf" id="monthly-field" style="display:none"><label>月給（円）</label><input type="number" id="f-monthly" placeholder="例: 210000" oninput="colorField(this)"></div>
     <div class="mf"><label>週の最大希望時間（空欄で区分の上限）</label><input type="number" id="f-maxh" placeholder="例: 20" oninput="colorField(this)" style="width:100%;padding:11px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit"></div>
+    <div class="mf"><label>週の最大出勤日数（空欄で制限なし）</label><input type="number" id="f-maxd" placeholder="例: 5" min="1" max="7" oninput="colorField(this);calcMaxH(this)" style="width:100%;padding:11px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit"></div>
     <div class="mf"><label>週の最低出勤日数（社員向け・空欄で制限なし）</label><input type="number" id="f-mind" placeholder="例: 5" min="1" max="7" oninput="colorField(this)" style="width:100%;padding:11px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit"></div>
     <div class="sec-div">担当エリア</div>
     <div class="mf">
@@ -1230,11 +1231,11 @@ function genShift(){
   // コードマップ
   const codeMap={fryer:'F',conro:'C',dishup:'D',dishwash:'W',sobaneri:'S'};
 
-  // スタッフ優先順（社員は最後）
+  // スタッフ優先順（社員は最後、同じ区分内はランダム）
   const sorted=[...targetStaff].sort((a,b)=>{
     if(a.type==='seiki'&&b.type!=='seiki')return 1;
     if(a.type!=='seiki'&&b.type==='seiki')return -1;
-    return 0;
+    return Math.random()-0.5;// 同じ区分内はランダム
   });
 
   // スタッフをポジションに配置する関数
@@ -1251,7 +1252,12 @@ function genShift(){
     const isHall=!kitSk.length&&floSk.length;
 
     if(!av.includes(dayIdx))return false;
-    if(shiftData[s.id][dateStr]!=='')return false;// すでに入っている
+    if(shiftData[s.id][dateStr]!=='')return false;
+    // 最大出勤日数チェック
+    if(s.max_days){
+      const workedSoFar=Object.values(shiftData[s.id]||{}).filter(v=>v&&v.trim()).length;
+      if(workedSoFar>=s.max_days)return false;
+    }
     const onVac=(s.vacations||[]).some(v=>dateStr>=v.from&&dateStr<=(v.to||v.from));
     if(onVac)return false;
 
@@ -2013,8 +2019,18 @@ function colorField(el){
     el.classList.remove('has-val');el.classList.add('empty-val');
   }
 }
+function calcMaxH(el){
+  // 最大出勤日数から最大時間を自動計算（昼4h、夜5.5hの平均で約4.5h/日）
+  const days=+el.value;
+  if(!days)return;
+  const pref=document.querySelector('[data-pref].on')?.dataset.pref||'any';
+  const hPerDay=pref==='night'?5.5:pref==='day'?4:5;
+  const maxh=Math.round(days*hPerDay);
+  const maxhEl=document.getElementById('f-maxh');
+  if(maxhEl){maxhEl.value=maxh;colorField(maxhEl);}
+}
 function colorFields(){
-  ['f-password','f-wage','f-monthly','f-maxh','f-mind'].forEach(id=>{
+  ['f-password','f-wage','f-monthly','f-maxh','f-maxd','f-mind'].forEach(id=>{
     const el=document.getElementById(id);if(el)colorField(el);
   });
 }
@@ -2031,6 +2047,7 @@ function openAdd(){
   document.getElementById('f-wage').value='';
   document.getElementById('f-monthly').value='';
   document.getElementById('f-maxh').value='';
+  document.getElementById('f-maxd').value='';
   document.getElementById('f-mind').value='';
   document.getElementById('f-password').value='';
   clearLevelBtns();
@@ -2060,6 +2077,7 @@ function editStaff(id){
   document.getElementById('f-wage').value=t!=='seiki'?(s.wage||''):'';
   document.getElementById('f-monthly').value=t==='seiki'?(s.wage||''):'';
   document.getElementById('f-maxh').value=s.max_h||'';
+  document.getElementById('f-maxd').value=s.max_days||'';
   document.getElementById('f-mind').value=s.min_days||'';
   document.getElementById('f-password').value=s.password||'';
   onTypeChange(t);
@@ -2113,6 +2131,7 @@ async function saveStaff(){
   const isSei=type==='seiki';
   const wage=isSei?(+document.getElementById('f-monthly').value||null):(+document.getElementById('f-wage').value||null);
   const max_h=+document.getElementById('f-maxh').value||null;
+  const max_days=+document.getElementById('f-maxd').value||null;
   const min_days=+document.getElementById('f-mind').value||null;
   const password=document.getElementById('f-password').value.trim()||null;
   const avail=[...document.querySelectorAll('#mod-days .db.on')].map(b=>+b.dataset.d);
@@ -2122,7 +2141,7 @@ async function saveStaff(){
   const abilities=[...(hasSoba?['sobaneri']:[]),...(hasHallM?['morning_hall']:[])];
   const vacations=getVacations();
   const day_also=getDayAlso();
-  const obj={name,type,max_h,min_days,wage,password,skills:skillsArr,abilities,avail,pref,vacations,day_also};
+  const obj={name,type,max_h,max_days,min_days,wage,password,skills:skillsArr,abilities,avail,pref,vacations,day_also};
   const eid=document.getElementById('eid').value;
   try{await saveStaffDB(obj,eid||null);closeMod();toast(eid?'更新しました':'追加しました');}catch(e){alert('保存失敗: '+e.message);}
 }
