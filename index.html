@@ -1208,7 +1208,7 @@ function genShift(){
   const dayCount={};
   dates.forEach(d=>{
     dayCount[fmtD(d)]={};
-    [...KIT,...FLO].forEach(p=>{
+    [...KIT,{key:'hall'},{key:'leader'}].forEach(p=>{
       dayCount[fmtD(d)][p.key]={lunch:0,idle:0,dinner:0};
     });
     dayCount[fmtD(d)]['morning']={lunch:0,idle:0,dinner:0};
@@ -1270,24 +1270,24 @@ function genShift(){
       if(band==='dinner'&&!prefIncludes(effPref,'night'))return false;
     }
 
-    // ポジションスキルチェック
-    if(posKey==='morning'){
+    // ポジションスキルチェック（cashierはhallとして扱う）
+    const effectivePosKey=posKey==='cashier'?'hall':posKey;
+    if(effectivePosKey==='morning'){
       if(!sk.includes('morning'))return false;
-    } else if(posKey==='morning_hall'){
+    } else if(effectivePosKey==='morning_hall'){
       if(!(s.abilities||[]).includes('morning_hall'))return false;
-    } else if(KIT_KEYS.includes(posKey)){
-      // そのポジションのスキルを持っているか確認
-      if(!sk.includes(posKey))return false;
-    } else if(['cashier','hall','leader'].includes(posKey)){
-      if(!sk.includes(posKey))return false;
+    } else if(KIT_KEYS.includes(effectivePosKey)){
+      if(!sk.includes(effectivePosKey))return false;
+    } else if(['hall','leader'].includes(effectivePosKey)){
+      if(!sk.includes('cashier')&&!sk.includes('hall'))return false;
     } else {
       return false;
     }
 
-    // 必要人数チェック（配置前に確認）— 社員はスキップ
+    // 必要人数チェック（cashierはhallのカウントで管理）— 社員はスキップ
     if(s.type!=='seiki'){
-      const curCount=dayCount[dateStr][posKey]?.[band]||0;
-      const reqCount=getRequired(posKey,band,dayIdx);
+      const curCount=dayCount[dateStr][effectivePosKey]?.[band]||0;
+      const reqCount=getRequired(effectivePosKey,band,dayIdx);
       if(reqCount>0&&curCount>=reqCount)return false;
     }
 
@@ -1312,13 +1312,13 @@ function genShift(){
 
     shiftData[s.id][dateStr]=start;
     wkH[s.id]+=h;
-    if(!dayCount[dateStr][posKey])dayCount[dateStr][posKey]={lunch:0,idle:0,dinner:0};
-    dayCount[dateStr][posKey][band]=(dayCount[dateStr][posKey][band]||0)+1;
+    if(!dayCount[dateStr][effectivePosKey])dayCount[dateStr][effectivePosKey]={lunch:0,idle:0,dinner:0};
+    dayCount[dateStr][effectivePosKey][band]=(dayCount[dateStr][effectivePosKey][band]||0)+1;
     return true;
   }
 
   // ポジション×時間帯×日付の順で必要人数を埋める
-  const allPos=[...KIT.map(p=>p.key),'morning',...FLO.map(p=>p.key),'morning_hall','other_kit','other_flo'];
+  const allPos=[...KIT.map(p=>p.key),'morning',...FLO.filter(p=>p.key!=='cashier').map(p=>p.key),'morning_hall','other_kit','other_flo'];
   const bands=['lunch','idle','dinner'];
 
   dates.forEach(d=>{
@@ -1418,7 +1418,7 @@ function genShift(){
       const isHall=!kitSk.length&&floSk.length;
       const mainPos=kitSk.find(k=>{const lv=getSkillLevel(s,k);return lv==='normal'||lv==='hojyo';})||kitSk[0]||floSk[0];
       const mc=mainPos?codeMap[mainPos]||'':'';
-      const posKey=mainPos||(floSk.includes('cashier')?'cashier':'hall');
+      const posKey=mainPos||'hall';// cashierもhallとして扱う
       const band=allowedBands.has('lunch')?'lunch':allowedBands.has('dinner')?'dinner':'idle';
       const isSei=s.type==='seiki';
       const lastH=parseFloat(cv('c-last').replace(':','.'))||22.5;
@@ -1497,7 +1497,8 @@ function genShift(){
 
   renderGrid();
 
-  // ── ポジション振り替え（不足を補う） ──
+  // ── ポジション振り替え（不足ポジションのコード変更のみ・人数は増やさない） ──
+  // 同じ日に入っているスタッフのポジションコードを変えるだけ
   dates.forEach(d=>{
     const dayIdx=getDayIdx(d);
     const dateStr=fmtD(d);
@@ -1510,86 +1511,34 @@ function genShift(){
 
         for(const s of sorted){
           if((dayCount[dateStr][neededPos]?.[band]||0)>=required)break;
+          const dateShift=shiftData[s.id]?.[dateStr];
+          if(!dateShift||!dateShift.trim())continue;// この日入っていない人はスキップ
+
           const sk=getSkillKeys(s);
           if(KIT_KEYS.includes(neededPos)&&!sk.includes(neededPos))continue;
           if(['cashier','hall','leader'].includes(neededPos)&&!sk.includes(neededPos))continue;
-          if(!(s.avail||[0,1,2,3,4,5,6]).includes(dayIdx))continue;
-          const onVac=(s.vacations||[]).some(v=>dateStr>=v.from&&dateStr<=(v.to||v.from));
-          if(onVac)continue;
 
-          const dateShift=shiftData[s.id]?.[dateStr];
+          // 現在のポジションを特定
+          const curCode=dateShift.trim().match(/^(練|補)?([FCDWS])?/)?.[2]||'';
+          const curPosMap={F:'fryer',C:'conro',D:'dishup',W:'dishwash',S:'sobaneri'};
+          const curPos=curPosMap[curCode]||'hall';
+          if(curPos===neededPos)continue;// すでに同じポジション
 
-          // ① すでにこの日入っている→ポジションコードだけ変更
-          if(dateShift&&dateShift.trim()){
-            const curCode=dateShift.trim().match(/^(練|補)?([FCDWS])?/)?.[2]||'';
-            const curPosMap={F:'fryer',C:'conro',D:'dishup',W:'dishwash',S:'sobaneri'};
-            const curPos=curPosMap[curCode]||'hall';
-            if(curPos===neededPos)continue;
-            const curRequired=getRequired(curPos,band,dayIdx);
-            const curActual=dayCount[dateStr][curPos]?.[band]||0;
-            if(curRequired>0&&curActual<=curRequired)continue;
-            const newCode=codeMap[neededPos]||'';
-            const isHallNew=['cashier','hall','leader'].includes(neededPos);
-            const timeMatch=dateShift.match(/(\d+(?:\.\d+)?-(?:L|\d+(?:\.\d+)?))/);
-            if(!timeMatch)continue;
-            const timeStr=timeMatch[1];
-            shiftData[s.id][dateStr]=isHallNew?timeStr:`${newCode}${timeStr}`;
-            if(!dayCount[dateStr][neededPos])dayCount[dateStr][neededPos]={lunch:0,idle:0,dinner:0};
-            dayCount[dateStr][neededPos][band]=(dayCount[dateStr][neededPos][band]||0)+1;
-            if(dayCount[dateStr][curPos]?.[band])dayCount[dateStr][curPos][band]--;
-            continue;
-          }
+          // 現在のポジションが余っている場合のみ振り替え
+          const curRequired=getRequired(curPos,band,dayIdx);
+          const curActual=dayCount[dateStr][curPos]?.[band]||0;
+          if(curRequired>0&&curActual<=curRequired)continue;
 
-          // ② この日入っていない→別の曜日から移動できるか探す
-          // そのスタッフが入っている日の中で「余っている日」を探す
-          const movableDate=dates.find(od=>{
-            const oDateStr=fmtD(od);
-            if(oDateStr===dateStr)return false;
-            const oShift=shiftData[s.id]?.[oDateStr];
-            if(!oShift||!oShift.trim())return false;
-            // 移動元の日でそのポジションが余っているか確認
-            const oCode=oShift.trim().match(/^(練|補)?([FCDWS])?/)?.[2]||'';
-            const oPosMap={F:'fryer',C:'conro',D:'dishup',W:'dishwash',S:'sobaneri'};
-            const oPos=oPosMap[oCode]||'hall';
-            const oDayIdx=getDayIdx(od);
-            const oBand=allowedBands.has('lunch')?'lunch':allowedBands.has('dinner')?'dinner':'idle';
-            const oRequired=getRequired(oPos,oBand,oDayIdx);
-            const oActual=dayCount[oDateStr][oPos]?.[oBand]||0;
-            // 移動元が余っている（必要人数より多い）場合のみ移動可
-            return oRequired<=0||(oActual>oRequired);
-          });
-
-          if(!movableDate)continue;
-
-          // 移動実行
-          const moveDateStr=fmtD(movableDate);
-          const moveBand=allowedBands.has('lunch')?'lunch':allowedBands.has('dinner')?'dinner':'idle';
-          const oShift=shiftData[s.id][moveDateStr];
-          const oCode=oShift.trim().match(/^(練|補)?([FCDWS])?/)?.[2]||'';
-          const oPosMap={F:'fryer',C:'conro',D:'dishup',W:'dishwash',S:'sobaneri'};
-          const oPos=oPosMap[oCode]||'hall';
-          const oDayIdx=getDayIdx(movableDate);
-
-          // 移動先のシフト時間を生成
-          const isHallNew=['cashier','hall','leader'].includes(neededPos);
+          // コードだけ変更（時間はそのまま・人数は増えない）
           const newCode=codeMap[neededPos]||'';
-          const newShift=isHallNew
-            ?(band==='lunch'?'9-14':band==='dinner'?'18-L':'15-18')
-            :(band==='lunch'?`${newCode}11-15`:band==='dinner'?`${newCode}17-L`:`${newCode}15-18`);
-          const newH=band==='lunch'?(isHallNew?5:4):band==='dinner'?5.5:3;
-          const oldH=parseH(oShift);
-
-          // 週の労働時間を調整
-          wkH[s.id]=wkH[s.id]-oldH+newH;
-
-          // 移動元をクリア
-          shiftData[s.id][moveDateStr]='';
-          if(dayCount[moveDateStr][oPos]?.[moveBand])dayCount[moveDateStr][oPos][moveBand]--;
-
-          // 移動先に配置
-          shiftData[s.id][dateStr]=newShift;
+          const isHallNew=['cashier','hall','leader'].includes(neededPos);
+          const timeMatch=dateShift.match(/(\d+(?:\.\d+)?-(?:L|\d+(?:\.\d+)?))/);
+          if(!timeMatch)continue;
+          const timeStr=timeMatch[1];
+          shiftData[s.id][dateStr]=isHallNew?timeStr:`${newCode}${timeStr}`;
           if(!dayCount[dateStr][neededPos])dayCount[dateStr][neededPos]={lunch:0,idle:0,dinner:0};
           dayCount[dateStr][neededPos][band]=(dayCount[dateStr][neededPos][band]||0)+1;
+          if(dayCount[dateStr][curPos]?.[band])dayCount[dateStr][curPos][band]--;
         }
       });
     });
