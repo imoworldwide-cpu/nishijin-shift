@@ -1259,7 +1259,11 @@ function genShift(){
     // 必要人数チェック（配置前に確認）
     const curCount=dayCount[dateStr][posKey]?.[band]||0;
     const reqCount=getRequired(posKey,band,dayIdx);
-    if(reqCount>0&&curCount>=reqCount)return false;
+    if(reqCount>0&&curCount>=reqCount){
+      // console.log(`スキップ: ${s.name} ${posKey} ${band} ${dateStr} cur=${curCount} req=${reqCount}`);
+      return false;
+    }
+    console.log(`配置: ${s.name} ${posKey} ${band} ${dateStr} cur=${curCount} req=${reqCount}`);
 
     // 時間と時給計算
     let start='',h=0;
