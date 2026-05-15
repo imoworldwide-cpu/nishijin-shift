@@ -1495,10 +1495,18 @@ function genShift(){
     });
   }
 
-  renderGrid();
+  // 人員不足チェック — セクションに応じた対象ポジションのみ
+  const checkPos=[];
+  if(curSec==='all'||curSec.startsWith('kitchen')){
+    KIT.forEach(p=>{ if(p.key!=='morning')checkPos.push(p.key); });
+    checkPos.push('morning');
+  }
+  if(curSec==='all'||curSec.startsWith('hall')){
+    FLO.forEach(p=>checkPos.push(p.key));
+    checkPos.push('morning_hall');
+  }
 
   // ── ポジション振り替え（不足ポジションのコード変更のみ・人数は増やさない） ──
-  // 同じ日に入っているスタッフのポジションコードを変えるだけ
   dates.forEach(d=>{
     const dayIdx=getDayIdx(d);
     const dateStr=fmtD(d);
@@ -1508,28 +1516,20 @@ function genShift(){
         const required=getRequired(neededPos,band,dayIdx);
         if(required<=0)return;
         if((dayCount[dateStr][neededPos]?.[band]||0)>=required)return;
-
         for(const s of sorted){
           if((dayCount[dateStr][neededPos]?.[band]||0)>=required)break;
           const dateShift=shiftData[s.id]?.[dateStr];
-          if(!dateShift||!dateShift.trim())continue;// この日入っていない人はスキップ
-
+          if(!dateShift||!dateShift.trim())continue;
           const sk=getSkillKeys(s);
           if(KIT_KEYS.includes(neededPos)&&!sk.includes(neededPos))continue;
           if(['cashier','hall','leader'].includes(neededPos)&&!sk.includes(neededPos))continue;
-
-          // 現在のポジションを特定
           const curCode=dateShift.trim().match(/^(練|補)?([FCDWS])?/)?.[2]||'';
           const curPosMap={F:'fryer',C:'conro',D:'dishup',W:'dishwash',S:'sobaneri'};
           const curPos=curPosMap[curCode]||'hall';
-          if(curPos===neededPos)continue;// すでに同じポジション
-
-          // 現在のポジションが余っている場合のみ振り替え
+          if(curPos===neededPos)continue;
           const curRequired=getRequired(curPos,band,dayIdx);
           const curActual=dayCount[dateStr][curPos]?.[band]||0;
           if(curRequired>0&&curActual<=curRequired)continue;
-
-          // コードだけ変更（時間はそのまま・人数は増えない）
           const newCode=codeMap[neededPos]||'';
           const isHallNew=['cashier','hall','leader'].includes(neededPos);
           const timeMatch=dateShift.match(/(\d+(?:\.\d+)?-(?:L|\d+(?:\.\d+)?))/);
@@ -1544,16 +1544,7 @@ function genShift(){
     });
   });
 
-  // 人員不足チェック — セクションに応じた対象ポジションのみ
-  const checkPos=[];
-  if(curSec==='all'||curSec.startsWith('kitchen')){
-    KIT.forEach(p=>{ if(p.key!=='morning')checkPos.push(p.key); });
-    checkPos.push('morning');
-  }
-  if(curSec==='all'||curSec.startsWith('hall')){
-    FLO.forEach(p=>checkPos.push(p.key));
-    checkPos.push('morning_hall');
-  }
+  renderGrid();
 
   const shortages=[];
   const seenKeys=new Set();// 重複除去
