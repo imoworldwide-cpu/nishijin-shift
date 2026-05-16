@@ -1310,10 +1310,12 @@ function genShift(){
     // ── 絶対条件チェック ──
     if(!av.includes(dayIdx))return false;
     if(shiftData[s.id][dateStr]!=='')return false;
-    if(s.max_days){
-      const worked=Object.values(shiftData[s.id]||{}).filter(v=>v&&v.trim()).length;
-      if(worked>=s.max_days)return false;
-    }
+    // 最大出勤日数チェック（今週の出勤日数のみカウント）
+    const mhVal=mxH(s);
+    const avgShiftH=s.pref==='night'?5.5:s.pref==='day'?4:5;
+    const autoMaxDays=s.max_days||(Math.min(7,Math.floor(mhVal/avgShiftH)));
+    const workedThisWeek=dates.filter(d=>shiftData[s.id]?.[fmtD(d)]&&shiftData[s.id][fmtD(d)]!=='').length;
+    if(workedThisWeek>=autoMaxDays)return false;
     const onVac=(s.vacations||[]).some(v=>dateStr>=v.from&&dateStr<=(v.to||v.from));
     if(onVac)return false;
 
