@@ -2066,7 +2066,7 @@ async function saveStaff(){
   const skillsArr=allSkills.filter(sk=>{
     const key=typeof sk==='string'?sk:sk.key;
     const isKit=KIT_KEYS.includes(key)||key==='morning';
-    const isFlo=['cashier','hall','leader'].includes(key);
+    const isFlo=['cashier','hall','leader','morning_hall'].includes(key);
     if(area==='kitchen')return isKit||key==='leader';
     if(area==='hall')return isFlo;
     return true;
