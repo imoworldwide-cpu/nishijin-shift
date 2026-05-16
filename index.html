@@ -693,11 +693,6 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
         <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px solid var(--text3);border-radius:4px;font-size:14px;flex-shrink:0;transition:all .15s" id="soba-ck-box"></span>
         <i class="ti ti-noodles" style="font-size:16px;color:var(--soba-t)"></i>蕎麦コネができる
       </label>
-      <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;font-size:13px;font-weight:700;color:var(--text3);background:var(--surface2);transition:all .15s;margin-top:6px" id="hall-morning-label" onclick="toggleHallMorning()">
-        <input type="checkbox" id="skill-hall-morning" style="display:none">
-        <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px solid var(--text3);border-radius:4px;font-size:14px;flex-shrink:0;transition:all .15s" id="hall-morning-ck-box"></span>
-        <i class="ti ti-sun" style="font-size:16px;color:#BA7517"></i>朝準備ができる（ホール）
-      </label>
     </div>
     <!-- 休暇希望 -->
     <div class="sec-div">休暇希望日 <span style="font-weight:400;font-size:10px;color:var(--text3)">（シフト生成時に除外）</span></div>
@@ -797,7 +792,12 @@ const KIT=[
   {key:'dishwash',lbl:'W 洗い場',     subOpt:false},
   {key:'morning', lbl:'朝準備',        subOpt:false},
 ];
-const FLO=[{key:'cashier',lbl:'レジ',subOpt:false},{key:'hall',lbl:'ホール',subOpt:false},{key:'leader',lbl:'リーダー',subOpt:false}];
+const FLO=[
+  {key:'morning_hall',lbl:'朝準備（ホール）',subOpt:false},
+  {key:'cashier',lbl:'レジ',subOpt:false},
+  {key:'hall',lbl:'ホール',subOpt:false},
+  {key:'leader',lbl:'リーダー',subOpt:false},
+];
 const ABIL=[];
 const ALL=[...KIT,...FLO];
 const KIT_KEYS=KIT.map(x=>x.key);
@@ -1331,7 +1331,7 @@ function genShift(){
     if(effectivePosKey==='morning'){
       if(!sk.includes('morning'))return false;
     } else if(effectivePosKey==='morning_hall'){
-      if(!(s.abilities||[]).includes('morning_hall'))return false;
+      if(!sk.includes('morning_hall')&&s.type!=='seiki')return false;
     } else if(KIT_KEYS.includes(effectivePosKey)){
       if(!sk.includes(effectivePosKey))return false;
     } else if(['hall','leader'].includes(effectivePosKey)){
@@ -1355,9 +1355,9 @@ function genShift(){
       start=isHall?'9-L':`${codeMap[posKey]||''}9-L`;
       h=lastH2-9;
     } else if(effectivePosKey==='morning'&&band==='lunch'){
-      start='9-12';h=3;// 朝準備専用9-12
+      start='9-12';h=3;
     } else if(effectivePosKey==='morning_hall'&&band==='lunch'){
-      start='9-12';h=3;// ホール朝準備9-12
+      start='9-12';h=3;// ホール朝準備も9-12
     } else if(band==='lunch'){
       // 朝準備が足りていれば11時入り、足りなければ9時入り
       const morningFull=(dayCount[dateStr]['morning']?.lunch||0)>=(getRequired('morning','lunch',dayIdx)||0)&&getRequired('morning','lunch',dayIdx)>0;
@@ -1376,7 +1376,12 @@ function genShift(){
   }
 
   // ── ラウンドロビン方式：ポジション×時間帯×日付で必要人数を埋める ──
-  const allPos=[...KIT.map(p=>p.key),'morning',...FLO.filter(p=>p.key!=='cashier').map(p=>p.key),'morning_hall','other_kit','other_flo'];
+  // セクション別にポジションを決定
+  const kitPos=[...KIT.map(p=>p.key),'morning','other_kit'];
+  const floPos=[...FLO.filter(p=>p.key!=='cashier').map(p=>p.key),'morning_hall','other_flo'];
+  const allPos=curSec.startsWith('kitchen')?kitPos
+    :curSec.startsWith('hall')?floPos
+    :[...kitPos,...floPos];
   const bands=['lunch','idle','dinner'];
 
   dates.forEach(d=>{
@@ -1514,9 +1519,8 @@ function genShift(){
           const dateShift=shiftData[s.id]?.[dateStr];
           if(!dateShift||!dateShift.trim())continue;
           const sk=getSkillKeys(s);
-          // 朝準備は社員全員対応可（社員はどのポジションもできる）
-          if(neededPos==='morning'&&s.type!=='seiki')continue;
-          if(neededPos==='morning_hall'&&s.type!=='seiki')continue;
+          if(neededPos==='morning'&&s.type!=='seiki'&&!sk.includes('morning'))continue;
+          if(neededPos==='morning_hall'&&s.type!=='seiki'&&!sk.includes('morning_hall'))continue;
           if(KIT_KEYS.includes(neededPos)&&neededPos!=='morning'&&!sk.includes(neededPos))continue;
           if(['hall','leader'].includes(neededPos)&&!sk.includes('cashier')&&!sk.includes('hall'))continue;
           // 社員以外は現在のポジションが余っている場合のみ
@@ -1532,10 +1536,9 @@ function genShift(){
           const newCode=codeMap[neededPos]||'';
           const isHallNew=['cashier','hall','leader'].includes(neededPos);
           const isMorning=neededPos==='morning'||neededPos==='morning_hall';
-          // 朝準備の場合は9-15固定
           if(isMorning){
-            shiftData[s.id][dateStr]=neededPos==='morning_hall'?'9-14':'9-15';
-            wkH[s.id]+=neededPos==='morning_hall'?5:6;
+            shiftData[s.id][dateStr]='9-12';
+            wkH[s.id]+=3;
           } else {
             const timeMatch=dateShift.match(/(\d+(?:\.\d+)?-(?:L|\d+(?:\.\d+)?))/);
             if(!timeMatch)continue;
@@ -2359,10 +2362,19 @@ const SEED_SHIFT = {
 
 async function seedInitialData(){
   const forceReset=location.search.includes('reset=1');
-  const {data:existing}=await sb.from('staff').select('id').limit(1);
-  if(existing&&existing.length>0&&!forceReset){
-    console.log('スタッフデータ既存 — シードスキップ');
-    return;
+  if(!forceReset){
+    // 通常時：スタッフが1人でもいればスキップ
+    try{
+      const {data:existing,error}=await sb.from('staff').select('id').limit(1);
+      if(error){console.log('DB接続確認失敗、シードスキップ:',error.message);return;}
+      if(existing&&existing.length>0){
+        console.log('スタッフデータ既存 — シードスキップ');
+        return;
+      }
+    }catch(e){
+      console.log('シード確認エラー、スキップ:',e);
+      return;
+    }
   }
   if(forceReset){
     await sb.from('shifts').delete().neq('id','00000000-0000-0000-0000-000000000000');
