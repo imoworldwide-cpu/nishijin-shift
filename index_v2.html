@@ -1,0 +1,2393 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>シフト管理 v2（スタッフ自動） — 生そばウエスト 西新店</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap');
+:root{
+  /* ロゴカラー: 赤×深緑×墨黒 */
+  --w-red:#E50012;--w-red-dk:#B8000E;--w-red-lt:#FFF0F1;
+  --w-green:#2B6B18;--w-green-dk:#1D4D10;--w-green-lt:#EDF5E8;
+  --w-ink:#1A1A14;
+  /* アクセント = 深緑 */
+  --accent:var(--w-green);--accent-dark:var(--w-green-dk);--accent-light:var(--w-green-lt);
+  /* 背景 = 和紙ベージュ */
+  --bg:#F8F5EE;--surface:#FFFEFB;--surface2:#F2EDE3;--surface3:#E8E0D2;
+  --border:#DDD4C4;--border2:#C8BCAA;
+  /* テキスト = 墨 */
+  --text:#1A1A14;--text2:#4A4438;--text3:#9A8E7A;
+  --red:var(--w-red);--red-bg:var(--w-red-lt);
+  /* 曜日ボタン = 深緑 */
+  --day-on:var(--w-green);--day-on-dark:var(--w-green-dk);
+  --radius:8px;--radius-lg:12px;
+  /* ポジション色 */
+  --fryer-bg:#FFF8E8;--fryer-t:#7C5000;
+  --conro-bg:#FFF3DC;--conro-t:#6D4200;
+  --dishup-bg:#EEF0FA;--dishup-t:#2D3580;
+  --wash-bg:#E8F4F8;--wash-t:#0D5070;
+  --soba-bg:#F0EDE8;--soba-t:#4E342E;
+  --hall-bg:#FFF0F1;--hall-t:#8B0012;
+  --hojyo-bg:#FFFDE8;--hojyo-t:#6D5000;
+  --renshu-bg:#F5EEF8;--renshu-t:#5B2C6F;
+  --kama-bg:#EDF5E8;--kama-t:#1D4D10;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5}
+
+/* LOGIN — 白背景に赤ロゴ帯 */
+#login-screen{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:0;width:100%;max-width:380px;box-shadow:0 8px 40px rgba(0,0,0,.12);overflow:hidden}
+.login-header{background:var(--w-red);padding:28px 32px 22px;text-align:center}
+.login-body{padding:24px 32px 28px}
+.login-logo{display:flex;align-items:center;justify-content:center;margin-bottom:6px}
+.login-title{text-align:center;font-size:13px;font-weight:600;color:rgba(255,255,255,.85);margin-bottom:0}
+.login-sub{text-align:center;font-size:11px;color:var(--text3);margin-bottom:20px;margin-top:2px}
+.login-tabs{display:flex;border:1.5px solid var(--border2);border-radius:var(--radius);overflow:hidden;margin-bottom:18px}
+.login-tab{flex:1;padding:9px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--text3);font-family:inherit;transition:all .15s}
+.login-tab.on{background:var(--w-green);color:#fff}
+.lf{margin-bottom:14px}
+.lf label{display:block;font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px;letter-spacing:.04em}
+.lf input{width:100%;padding:12px 13px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit}
+.lf input:focus{outline:none;border-color:var(--w-green)}
+.login-btn{width:100%;padding:13px;background:var(--w-green);color:#fff;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+.login-btn:hover{background:var(--w-green-dk)}
+.login-err{font-size:12px;color:var(--w-red);text-align:center;margin-top:10px;display:none}
+.login-hint{font-size:11px;color:var(--text3);text-align:center;margin-top:14px}
+
+/* APP */
+#app{display:flex;height:100vh;overflow:hidden}
+#app.hidden{display:none}
+/* RAIL — 深緑 */
+.rail{width:56px;background:var(--w-green);border-right:none;display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:2px;flex-shrink:0}
+.rail-logo{width:40px;height:40px;background:transparent;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.rail-btn{width:40px;height:40px;border-radius:8px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.55);position:relative;transition:all .15s}
+.rail-btn:hover{background:rgba(255,255,255,.15);color:#fff}
+.rail-btn.active{background:rgba(255,255,255,.22);color:#fff}
+.rail-btn i,.rail-logout i{font-size:20px}
+.ttip{position:absolute;left:48px;top:50%;transform:translateY(-50%);background:var(--w-ink);color:#fff;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:100}
+.rail-btn:hover .ttip,.rail-logout:hover .ttip{opacity:1}
+.rail-sep{width:28px;height:1px;background:rgba(255,255,255,.2);margin:4px 0}
+.rail-logout{margin-top:auto;width:40px;height:40px;border-radius:8px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.4);transition:all .15s;position:relative}
+.rail-logout:hover{background:rgba(255,255,255,.15);color:#fff}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+/* TOPBAR — 白×赤ライン */
+.topbar{height:52px;background:var(--surface);border-bottom:3px solid var(--w-red);display:flex;align-items:center;padding:0 18px;gap:12px;flex-shrink:0}
+.topbar-title{font-size:15px;font-weight:700;flex:1}
+.topbar-sub{font-size:11px;color:var(--text3)}
+.topbar-role{font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;background:var(--w-red);color:#fff}
+.topbar-acts{display:flex;gap:6px}
+.content{flex:1;overflow-y:auto;padding:16px;background:var(--bg);padding-bottom:80px}
+.pg{display:none}.pg.on{display:block}
+/* BOTTOM NAV — 深緑アクセント */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:2px solid var(--border);padding:8px 0 max(8px,env(safe-area-inset-bottom));z-index:50}
+.bottom-nav-inner{display:flex;justify-content:space-around}
+.bn-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border:none;background:none;cursor:pointer;color:var(--text3);font-family:inherit;transition:color .15s}
+.bn-btn.active{color:var(--w-green)}
+.bn-btn i{font-size:22px}
+.bn-btn span{font-size:10px;font-weight:600}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;font-size:12px;font-weight:700;border-radius:var(--radius);border:1.5px solid var(--border2);background:var(--surface);cursor:pointer;color:var(--text);font-family:inherit;transition:all .12s;white-space:nowrap}
+.btn:hover{background:var(--surface2)}.btn:active{transform:scale(.97)}
+.btn.p{background:var(--w-green);color:#fff;border-color:var(--w-green)}.btn.p:hover{background:var(--w-green-dk)}
+.btn.danger{color:var(--w-red);border-color:#FFCDD2;background:#FFF5F5}
+.btn.line-btn{background:#06C755;color:#fff;border-color:#06C755}
+.btn i{font-size:14px}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px}
+.card-title{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.card-title i{font-size:16px;color:var(--w-green)}
+
+/* STATS — 緑ライン */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:11px 13px;border-top:3px solid var(--w-green)}
+.sc .sl{font-size:10px;color:var(--text3);font-weight:700;letter-spacing:.05em}
+.sc .sv{font-size:24px;font-weight:900;line-height:1.1;margin-top:2px;color:var(--w-green)}
+.sc .su{font-size:11px;color:var(--text3)}
+
+/* STAFF */
+.staff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.scard{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-lg);padding:13px;cursor:pointer;transition:all .15s}
+.scard:hover{border-color:var(--w-green);box-shadow:0 0 0 3px var(--w-green-lt)}
+.av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.tgs{display:flex;flex-wrap:wrap;gap:3px;margin-top:7px}
+.tg{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700}
+.tg.fryer{background:var(--fryer-bg);color:var(--fryer-t)}
+.tg.conro{background:var(--conro-bg);color:var(--conro-t)}.tg.dishup{background:var(--dishup-bg);color:var(--dishup-t)}
+.tg.dishwash{background:var(--wash-bg);color:var(--wash-t)}.tg.cashier{background:var(--w-green-lt);color:var(--w-green-dk)}
+.tg.sobaneri{background:var(--soba-bg);color:var(--soba-t)}
+.tg.hall{background:var(--hall-bg);color:var(--hall-t)}.tg.leader{background:var(--w-red);color:#fff}
+.tg.abil{background:var(--soba-bg);color:var(--soba-t);font-style:italic}
+.abil-sec{margin-top:7px;padding-top:7px;border-top:1px solid var(--border)}
+.abil-lbl{font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.05em;margin-bottom:4px}
+
+/* FORM */
+.fr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.fr label{font-size:12px;color:var(--text2);flex:1;font-weight:500}
+.fr input[type=number],.fr input[type=text],.fr input[type=time],.fr select{padding:6px 9px;font-size:12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;width:100px}
+.fr input:focus,.fr select:focus{outline:none;border-color:var(--w-green)}
+.fr .u{font-size:11px;color:var(--text3);white-space:nowrap}
+.ck{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:var(--text);padding:4px 0}
+.ck input{accent-color:var(--w-green);width:14px;height:14px}
+.ckg{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+
+/* DAY BUTTONS */
+.day-row{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.db{padding:8px 3px;border:1.5px solid var(--border2);border-radius:var(--radius);font-size:12px;font-weight:700;text-align:center;cursor:pointer;color:var(--text3);background:var(--surface2);font-family:inherit;transition:all .15s;user-select:none;touch-action:manipulation}
+.db.on{background:var(--w-green);color:#fff;border-color:var(--w-green-dk)}
+/* AREA BUTTONS */
+.area-btn{padding:10px 6px;border:1.5px solid var(--border2);border-radius:var(--radius);font-size:12px;font-weight:700;text-align:center;cursor:pointer;color:var(--text3);background:var(--surface2);font-family:inherit;transition:all .15s;width:100%;touch-action:manipulation}
+.area-btn.on{background:var(--w-green);color:#fff;border-color:var(--w-green-dk)}
+/* POSITION ROWS */
+.pos-tog{padding:9px 10px;border:1.5px solid var(--border2);border-radius:var(--radius);font-size:12px;font-weight:700;text-align:center;cursor:pointer;color:var(--text3);background:var(--surface2);font-family:inherit;transition:all .15s;touch-action:manipulation;width:100%}
+.pos-tog:hover{background:var(--surface);color:var(--text2)}
+.pos-tog.on{background:var(--w-green);color:#fff;border-color:var(--w-green-dk)}
+.pos-sub{display:none;gap:6px;align-items:center;padding:5px 2px 2px;flex-wrap:wrap}
+.pos-sub.show{display:flex}
+/* 補・練 カスタムボタン */
+.sub-ck{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;padding:5px 10px;border:1.5px solid var(--border2);border-radius:6px;background:var(--surface2);color:var(--text3);transition:all .15s;user-select:none}
+.sub-ck input{display:none}/* ネイティブcheckbox非表示 */
+.sub-ck .ck-mark{display:inline-block;width:14px;height:14px;border:1.5px solid currentColor;border-radius:3px;margin-right:2px;position:relative;flex-shrink:0}
+.sub-ck .ck-mark::after{content:'✓';position:absolute;top:-2px;left:1px;font-size:11px;font-weight:900;display:none}
+.sub-ck input:checked ~ .ck-mark::after{display:block}
+.sub-ck.hojyo{color:var(--hojyo-t)}
+.sub-ck.hojyo input:checked ~ .ck-mark, .sub-ck.hojyo.active{border-color:var(--hojyo-t);background:var(--hojyo-bg);color:var(--hojyo-t)}
+.sub-ck.renshu{color:var(--renshu-t)}
+.sub-ck.renshu input:checked ~ .ck-mark, .sub-ck.renshu.active{border-color:var(--renshu-t);background:var(--renshu-bg);color:var(--renshu-t)}
+/* 希望シフト帯 */
+.pref-ck{display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);transition:all .15s}
+.pref-ck input{width:17px;height:17px;accent-color:var(--w-green);cursor:pointer;flex-shrink:0}
+.pref-ck.checked{border-color:var(--w-green);background:var(--w-green-lt);color:var(--w-green-dk)}
+
+/* COND TABS */
+.cond-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:16px;overflow-x:auto}
+.ctab{padding:9px 14px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:none;color:var(--text3);font-family:inherit;border-bottom:2.5px solid transparent;margin-bottom:-1px;transition:all .15s;white-space:nowrap}
+.ctab.on{color:var(--w-green);border-bottom-color:var(--w-green)}
+.cpanel{display:none}.cpanel.on{display:block}
+
+/* POS TABLE */
+.pos-wrap{overflow-x:auto}
+.pos-tbl{width:100%;border-collapse:collapse;font-size:11px;min-width:400px}
+.pos-tbl th{font-size:10px;color:var(--text3);font-weight:700;padding:6px 7px;text-align:center;border-bottom:1px solid var(--border);background:var(--surface2)}
+.pos-tbl th:first-child{text-align:left}
+.pos-tbl td{padding:5px 7px;border-bottom:1px solid var(--border);text-align:center}
+.pos-tbl td:first-child{text-align:left;color:var(--text2);font-weight:500}
+.pos-tbl input{width:44px;padding:3px;font-size:11px;border:1px solid var(--border2);border-radius:5px;text-align:center;background:var(--surface);color:var(--text)}
+.th-we{background:var(--w-green-lt) !important;color:var(--w-green-dk) !important}
+
+/* SHIFT EDITOR */
+.shift-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.wk-nav{display:flex;align-items:center;gap:6px}
+.wk-nav button{padding:6px 10px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);cursor:pointer;color:var(--text);font-family:inherit;font-size:12px}
+.wk-nav button:hover{background:var(--surface2)}
+.wl{font-size:13px;font-weight:700;min-width:160px;text-align:center}
+.cost-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.cost-item .cost-label{font-size:10px;color:var(--text3);font-weight:700;letter-spacing:.04em}
+.cost-item .cost-val{font-size:20px;font-weight:700;letter-spacing:-.02em;color:var(--w-green)}
+.sec-tabs{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
+.sec-tab{padding:6px 12px;font-size:11px;font-weight:700;border-radius:20px;border:1.5px solid var(--border2);background:var(--surface);cursor:pointer;color:var(--text3);font-family:inherit;transition:all .15s}
+.sec-tab.on{border-color:var(--w-green);background:var(--w-green-lt);color:var(--w-green-dk)}
+.legend{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.legend-item{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px}
+.shift-grid-wrap{border:1px solid var(--border);border-radius:var(--radius-lg);overflow:auto;max-height:calc(100vh - 320px)}
+.sgrid{width:100%;border-collapse:collapse;min-width:680px}
+.sgrid th{background:var(--surface2);padding:7px 8px;text-align:center;font-weight:700;border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);position:sticky;top:0;z-index:3;white-space:nowrap;letter-spacing:.04em}
+.sgrid th.name-th{text-align:left;min-width:90px;position:sticky;left:0;z-index:4;background:var(--surface2)}
+.sgrid th.we-th{background:var(--w-green-lt);color:var(--w-green-dk)}
+.sgrid td{padding:3px 4px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);vertical-align:middle}
+.sgrid td.name-td{position:sticky;left:0;z-index:1;background:var(--surface);padding:5px 8px;white-space:nowrap}
+.sgrid td.sum-td{background:var(--surface2);padding:5px 8px;text-align:right;white-space:nowrap;min-width:80px}
+.sgrid tr:last-child td{border-bottom:none}
+.sgrid tr.cnt-row td{background:var(--surface2);font-size:11px;font-weight:700;text-align:center;color:var(--text2)}
+.sgrid tr.cnt-row td.name-td{color:var(--text3);background:var(--surface2)}
+.ci{width:100%;min-width:76px;padding:5px 6px;font-size:11px;font-weight:700;text-align:center;border:1.5px solid transparent;border-radius:7px;background:var(--surface2);color:var(--text3);font-family:inherit;cursor:text;transition:all .12s;outline:none}
+.ci:focus{border-color:var(--w-green);box-shadow:0 0 0 3px var(--w-green-lt);z-index:5;position:relative}
+.ci.pk{background:var(--kama-bg);color:var(--kama-t)}
+.ci.pf{background:var(--fryer-bg);color:var(--fryer-t)}
+.ci.pc{background:var(--conro-bg);color:var(--conro-t)}
+.ci.pd{background:var(--dishup-bg);color:var(--dishup-t)}
+.ci.pw{background:var(--wash-bg);color:var(--wash-t)}
+.ci.ps{background:var(--soba-bg);color:var(--soba-t)}
+.ci.ph{background:var(--hall-bg);color:var(--hall-t)}
+.ci.pb{background:var(--hojyo-bg);color:var(--hojyo-t)}
+.ci.pr{background:var(--renshu-bg);color:var(--renshu-t)}
+
+/* PAYROLL */
+.pay-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.pc2{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px}
+.pc2 .pl{font-size:10px;color:var(--text3);font-weight:700;letter-spacing:.04em}
+.pc2 .pv{font-size:20px;font-weight:700;margin-top:3px;color:var(--w-green)}
+.ptbl{width:100%;border-collapse:collapse;font-size:12px}
+.ptbl th{background:var(--surface2);padding:8px 10px;text-align:left;font-weight:700;border-bottom:1px solid var(--border);font-size:10px;color:var(--text3)}
+.ptbl td{padding:8px 10px;border-bottom:1px solid var(--border)}
+.ptbl tbody tr:hover td{background:var(--surface2)}
+.pay-bar-wrap{height:4px;background:var(--surface3);border-radius:2px;margin-top:3px}
+.pay-bar{height:4px;border-radius:2px;background:var(--w-green)}
+
+/* LINE */
+.line-st{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:4px 11px;border-radius:20px;margin-bottom:12px}
+.line-st.conn{background:var(--w-green-lt);color:var(--w-green-dk)}.line-st.disc{background:var(--red-bg);color:var(--red)}
+.notif-item{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;margin-bottom:6px;background:var(--surface)}
+.tog{width:42px;height:24px;border-radius:12px;background:var(--border2);position:relative;cursor:pointer;transition:background .2s;border:none;flex-shrink:0}
+.tog.on{background:var(--w-green)}.tog::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}.tog.on::after{left:20px}
+.prev-box{background:var(--surface2);border-radius:var(--radius);padding:12px 14px;font-size:12px;line-height:1.8;white-space:pre-wrap;font-family:'Courier New',monospace;border:1px solid var(--border);margin-top:9px}
+
+/* MODAL */
+.backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-end;justify-content:center}
+.backdrop.open{display:flex}
+.modal{background:var(--surface);border-radius:16px 16px 0 0;padding:20px 18px;width:100%;max-height:92vh;overflow-y:auto;position:relative;box-shadow:0 -4px 40px rgba(0,0,0,.15)}
+.modal-handle{width:40px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 14px}
+.modal h2{font-size:16px;font-weight:700;margin-bottom:16px}
+.modal .xb{position:absolute;top:18px;right:16px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;line-height:1}
+.mf{margin-bottom:12px}
+.mf>label{display:block;font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;letter-spacing:.03em}
+.mf input,.mf select{width:100%;padding:11px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit;-webkit-appearance:none}
+.mf input:focus,.mf select:focus{outline:none;border-color:var(--w-green)}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.macts{display:flex;gap:7px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
+.sec-div{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;margin:13px 0 7px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+
+/* MISC */
+.store-banner{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.store-info{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px;font-weight:500}
+.store-info i{font-size:13px;color:var(--w-green)}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:9px 18px;border-radius:30px;font-size:13px;font-weight:600;z-index:500;opacity:0;transition:all .3s;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.type-badge{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;display:inline-block}
+.tb-general{background:var(--w-green-lt);color:var(--w-green-dk)}
+.tb-student{background:#E8F0FB;color:#1A3A8B}
+.tb-parttime{background:var(--w-green-lt);color:var(--w-green-dk)}
+.tb-shahou{background:#F0EAF8;color:#5B2C8B}
+.tb-seiki{background:var(--w-red);color:#fff}
+.hint{font-size:12px;border-radius:var(--radius);padding:9px 13px;margin-bottom:10px;align-items:center;gap:8px;font-weight:600;display:none}
+.hint.ok{background:var(--w-green-lt);color:var(--w-green-dk);display:flex}
+.hint.warn{background:var(--red-bg);color:var(--red);display:flex}
+
+/* 入力フィールドの色分け */
+.mf input.has-val{border-color:var(--w-green)!important;background:var(--w-green-lt)!important;color:var(--w-green-dk)!important;font-weight:700!important}
+.mf input.empty-val{border-color:var(--border2);background:var(--surface2);color:var(--text3)}
+@media(max-width:640px){
+  .rail{display:none}.bottom-nav{display:block}
+  .content{padding:12px;padding-bottom:88px}
+  .stat-row{grid-template-columns:1fr 1fr}.staff-grid{grid-template-columns:1fr}
+  .pay-sum{grid-template-columns:1fr 1fr}.topbar-sub{display:none}
+  .cost-bar{gap:12px}
+}
+@media(min-width:641px){
+  .modal{border-radius:16px;max-width:480px;margin:auto;max-height:88vh}
+  .backdrop{align-items:center}.modal-handle{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <!-- 赤ヘッダー：ロゴ -->
+    <div class="login-header">
+      <div class="login-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 47.48" style="width:160px;height:auto">
+          <path fill="#fff" fill-opacity=".18" d="M138.64,9.49C117.48,3.09,96.78-.2,75,0h0C53.22-.2,32.52,3.09,11.36,9.49c-14.84,4.49-15.45,22.73,0,27.81,21.15,6.95,41.86,10.43,63.64,10.17,21.77.26,42.49-3.21,63.64-10.17,15.45-5.08,14.84-23.32,0-27.81Z"/>
+          <path fill="#fff" d="M32.34,14.89l-.03-2.39c-.02-2.44,4.85-2.66,4.89-.05,0,.78.03,2.32.03,2.32l8.21-.08c1.88.14,2.87,2.27,2.85,4.01-.33,13.6-8.66,17.19-15.34,18.24-3.87.6-4.84-4.61-1.41-5.21,8.32-1.45,11.07-5.2,11.04-11.44,0-.05-.11-.42-.17-.42l-16.58.22-.11.17c0,1.08.06,4.78.06,4.78.03,2.83-5.07,2.88-5.09.06-.04-2.75-.09-5.64-.09-7.94,0-1.24.86-2.13,2.28-2.15l9.46-.12Z"/>
+          <path fill="#fff" d="M52.09,35.79c-3.75.05-3.48-5.07-.06-5.22l9.24-.09-.12-11.63s-6.09.07-8.43.08c-3.31.04-3.16-5.23-.17-5.26,2.24-.03,19.4-.21,21.85-.23,3.48-.04,3.74,5.23.12,5.27-2.17.02-7.39.08-7.39.08l.11,11.62,8.1-.09c3.96-.04,4.09,5.29.05,5.22l-23.31.24Z"/>
+          <path fill="#fff" d="M98.2,30.2c-3.59,3.29-8.42,5.21-13.85,5.26-3.31.04-4.05-5.11-.21-5.37,7.18-.5,13.75-5.89,14.2-11.19l-.24-.27s-11.89.23-14.83.15c-2.95-.07-3.32-5.22-.05-5.25l18.04-.19c2.19-.1,3.23.82,3.25,3.1.02,1.74-.1,1.52-.1,1.52-.37,2.85-1.27,5.46-2.58,7.72,3.25,1.48,5.09,3.01,6.35,4.84,2.02,2.96-2.19,5.7-4.02,3.72,0,0-4.51-4.25-5.95-4.06Z"/>
+          <path fill="#fff" d="M134.88,23.48c-5.18-2.92-10.31-4.28-17.42-4.26-.03-2.57-.05-4.75-.05-5.88-.04-3.81-5.1-3.75-5.06.05,0,0,.18,17.91.2,20.37.04,2.88,5.1,3.06,5.07-.21-.02-1.45-.05-4.93-.1-8.65,4.25-.54,13.07,2.33,14.75,3.26,3.37,1.87,5.5-3.05,2.61-4.69Z"/>
+        </svg>
+      </div>
+      <div class="login-title">シフト管理システム</div>
+    </div>
+    <!-- 白ボディ -->
+    <div class="login-body">
+      <div class="login-sub">生そばウエスト 西新店</div>
+      <div class="login-tabs">
+        <button class="login-tab on" onclick="setLR('manager')">店長</button>
+        <button class="login-tab" onclick="setLR('staff')">スタッフ</button>
+      </div>
+      <!-- 店長 -->
+      <div id="login-manager-area">
+        <div class="lf"><label>パスワード</label>
+          <input type="password" id="lpw" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+      </div>
+      <!-- スタッフ個人 -->
+      <div id="login-staff-area" style="display:none">
+        <div class="lf"><label>名前</label>
+          <select id="l-staff-name" style="width:100%;padding:12px 13px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit;-webkit-appearance:none">
+            <option value="">-- 名前を選んでください --</option>
+          </select>
+        </div>
+        <div class="lf"><label>パスワード</label>
+          <input type="password" id="lpw-staff" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+      </div>
+      <button class="login-btn" onclick="doLogin()">ログイン</button>
+      <div class="login-err" id="lerr">パスワードが違います</div>
+      <div class="login-hint" id="login-hint-mgr">店長パスワード: <strong>west2024</strong></div>
+      <div class="login-hint" id="login-hint-st" style="display:none">名前を選んでパスワードを入力してください</div>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <div class="rail">
+    <div class="rail-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 47.48" style="width:38px;height:auto">
+        <path fill="rgba(255,255,255,.2)" d="M138.64,9.49C117.48,3.09,96.78-.2,75,0h0C53.22-.2,32.52,3.09,11.36,9.49c-14.84,4.49-15.45,22.73,0,27.81,21.15,6.95,41.86,10.43,63.64,10.17,21.77.26,42.49-3.21,63.64-10.17,15.45-5.08,14.84-23.32,0-27.81Z"/>
+        <path fill="#fff" d="M32.34,14.89l-.03-2.39c-.02-2.44,4.85-2.66,4.89-.05,0,.78.03,2.32.03,2.32l8.21-.08c1.88.14,2.87,2.27,2.85,4.01-.33,13.6-8.66,17.19-15.34,18.24-3.87.6-4.84-4.61-1.41-5.21,8.32-1.45,11.07-5.2,11.04-11.44,0-.05-.11-.42-.17-.42l-16.58.22-.11.17c0,1.08.06,4.78.06,4.78.03,2.83-5.07,2.88-5.09.06-.04-2.75-.09-5.64-.09-7.94,0-1.24.86-2.13,2.28-2.15l9.46-.12Z"/>
+        <path fill="#fff" d="M52.09,35.79c-3.75.05-3.48-5.07-.06-5.22l9.24-.09-.12-11.63s-6.09.07-8.43.08c-3.31.04-3.16-5.23-.17-5.26,2.24-.03,19.4-.21,21.85-.23,3.48-.04,3.74,5.23.12,5.27-2.17.02-7.39.08-7.39.08l.11,11.62,8.1-.09c3.96-.04,4.09,5.29.05,5.22l-23.31.24Z"/>
+        <path fill="#fff" d="M98.2,30.2c-3.59,3.29-8.42,5.21-13.85,5.26-3.31.04-4.05-5.11-.21-5.37,7.18-.5,13.75-5.89,14.2-11.19l-.24-.27s-11.89.23-14.83.15c-2.95-.07-3.32-5.22-.05-5.25l18.04-.19c2.19-.1,3.23.82,3.25,3.1.02,1.74-.1,1.52-.1,1.52-.37,2.85-1.27,5.46-2.58,7.72,3.25,1.48,5.09,3.01,6.35,4.84,2.02,2.96-2.19,5.7-4.02,3.72,0,0-4.51-4.25-5.95-4.06Z"/>
+        <path fill="#fff" d="M134.88,23.48c-5.18-2.92-10.31-4.28-17.42-4.26-.03-2.57-.05-4.75-.05-5.88-.04-3.81-5.1-3.75-5.06.05,0,0,.18,17.91.2,20.37.04,2.88,5.1,3.06,5.07-.21-.02-1.45-.05-4.93-.1-8.65,4.25-.54,13.07,2.33,14.75,3.26,3.37,1.87,5.5-3.05,2.61-4.69Z"/>
+      </svg>
+    </div>
+    <button class="rail-btn active" data-pg="staff" onclick="go('staff')"><i class="ti ti-users"></i><span class="ttip">スタッフ</span></button>
+    <button class="rail-btn" data-pg="cond" onclick="go('cond')"><i class="ti ti-settings"></i><span class="ttip">条件設定</span></button>
+    <div class="rail-sep"></div>
+    <button class="rail-btn" data-pg="shift" onclick="go('shift')"><i class="ti ti-calendar"></i><span class="ttip">シフト表</span></button>
+    <button class="rail-btn" data-pg="pay" onclick="go('pay')"><i class="ti ti-coin"></i><span class="ttip">給与集計</span></button>
+    <div class="rail-sep"></div>
+    <button class="rail-btn" data-pg="line" onclick="go('line')"><i class="ti ti-message-circle"></i><span class="ttip">LINE通知</span></button>
+    <button class="rail-logout" onclick="doLogout()"><i class="ti ti-logout"></i><span class="ttip">ログアウト</span></button>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div style="flex:1;min-width:0">
+        <div class="topbar-title" id="tbtitle">スタッフ管理</div>
+        <div class="topbar-sub">生そばウエスト 西新店</div>      </div>
+      <span class="topbar-role" id="tbrole">店長</span>
+      <div class="topbar-acts" id="tbacts"><button class="btn p" onclick="openAdd()"><i class="ti ti-plus"></i>追加</button></div>
+    </div>
+    <div class="content">
+
+      <!-- STAFF -->
+      <div class="pg on" id="pg-staff">
+        <div class="store-banner">
+          <div class="store-info"><i class="ti ti-map-pin"></i><strong>福岡市早良区城西3丁目21−27</strong></div>
+          <div class="store-info"><i class="ti ti-phone"></i><strong>092-836-7440</strong></div>
+          <div class="store-info"><i class="ti ti-clock"></i><strong>11:00〜22:00（L≒22:30）</strong></div>
+        </div>
+        <div class="stat-row">
+          <div class="sc"><div class="sl">総スタッフ</div><div class="sv" id="st0">—</div><div class="su">名</div></div>
+          <div class="sc"><div class="sl">リーダー</div><div class="sv" id="st1">—</div><div class="su">名</div></div>
+          <div class="sc"><div class="sl">厨房担当</div><div class="sv" id="st2">—</div><div class="su">名</div></div>
+          <div class="sc"><div class="sl">蕎麦コネ可</div><div class="sv" id="st3">—</div><div class="su">名</div></div>
+        </div>
+        <!-- 検索バー -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <div style="flex:1;position:relative">
+            <i class="ti ti-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:15px;color:var(--text3);pointer-events:none"></i>
+            <input type="text" id="staff-search" placeholder="名前で検索…"
+              style="width:100%;padding:9px 12px 9px 34px;border:1.5px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--surface);color:var(--text);font-family:inherit;transition:border-color .15s"
+              oninput="onStaffSearch(this.value)"
+              onfocus="this.style.borderColor='var(--w-green)'"
+              onblur="this.style.borderColor='var(--border2)'">
+          </div>
+          <button class="btn" onclick="document.getElementById('staff-search').value='';onStaffSearch('')" style="padding:8px 10px"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="staff-grid" id="sgrid"></div>
+      </div>
+
+      <!-- COND -->
+      <div class="pg" id="pg-cond">
+        <div class="cond-tabs">
+          <button class="ctab on" onclick="ctab('labor')">労働時間</button>
+          <button class="ctab" onclick="ctab('pos')">ポジション人数</button>
+          <button class="ctab" onclick="ctab('wage')">時給設定</button>
+        </div>
+        <div class="cpanel on" id="cp-labor">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="card" style="margin-bottom:0">
+              <div class="card-title"><i class="ti ti-clock"></i>週労働時間上限</div>
+              <div class="fr"><label>スタッフ</label><input type="number" id="c-gen" value="28"><span class="u">h/週</span></div>
+              <div class="fr"><label>学生スタッフ</label><input type="number" id="c-stu" value="20"><span class="u">h/週</span></div>
+              <div class="fr"><label>社保付きスタッフ</label><input type="number" id="c-sha" value="30"><span class="u">h/週</span></div>
+              <div class="fr"><label>社員</label><input type="number" id="c-sei" value="40"><span class="u">h/週</span></div>
+              <div class="fr"><label>ラスト（L）時刻</label><input type="time" id="c-last" value="22:30" style="width:110px"></div>
+            </div>
+            <div class="card" style="margin-bottom:0">
+              <div class="card-title"><i class="ti ti-calendar-week"></i>週末判定</div>
+              <p style="font-size:11px;color:var(--text3);margin-bottom:9px;font-weight:500">青 = 週末（人数多め適用）</p>
+              <div class="day-row" id="we-days">
+                <button type="button" class="db" data-d="0">月</button><button type="button" class="db" data-d="1">火</button>
+                <button type="button" class="db" data-d="2">水</button><button type="button" class="db" data-d="3">木</button>
+                <button type="button" class="db" data-d="4">金</button><button type="button" class="db on" data-d="5">土</button>
+                <button type="button" class="db on" data-d="6">日</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="cpanel" id="cp-pos">
+          <div style="background:var(--accent-light);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--accent-dark);font-weight:500">
+            <i class="ti ti-clock" style="font-size:14px;vertical-align:middle"></i>
+            アイドルタイム:
+            <input type="time" id="idle-start" value="15:00" style="padding:3px 7px;border:1.5px solid var(--border2);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);margin:0 4px">〜
+            <input type="time" id="idle-end" value="18:00" style="padding:3px 7px;border:1.5px solid var(--border2);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);margin:0 4px">
+            <span style="color:var(--text3)">（昼と夜の間の閑散時間帯）</span>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-chef-hat"></i>厨房 必要人数（曜日ごと・時間帯別）</div>
+            <p style="font-size:11px;color:var(--text3);margin-bottom:8px">各曜日の昼/アイドル/夕の必要人数を設定してください。祝日は自動で週末扱いになります。</p>
+            <div class="pos-wrap"><table class="pos-tbl" id="kt-table">
+              <thead><tr>
+                <th>ポジション</th>
+                <th>時間帯</th>
+                <th>月</th><th>火</th><th>水</th><th>木</th><th>金</th>
+                <th class="th-we">土</th><th class="th-we">日</th>
+              </tr></thead>
+              <tbody id="kt-body"></tbody>
+            </table></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-layout"></i>ホール 必要人数（曜日ごと・時間帯別）</div>
+            <div class="pos-wrap"><table class="pos-tbl" id="fl-table">
+              <thead><tr>
+                <th>ポジション</th>
+                <th>時間帯</th>
+                <th>月</th><th>火</th><th>水</th><th>木</th><th>金</th>
+                <th class="th-we">土</th><th class="th-we">日</th>
+              </tr></thead>
+              <tbody id="fl-body"></tbody>
+            </table></div>
+          </div>
+        </div>
+        <div class="cpanel" id="cp-wage">
+          <div class="card">
+            <div class="card-title"><i class="ti ti-coin"></i>時給設定</div>
+            <div class="fr"><label>スタッフ</label><input type="number" id="w-gen" value="950"><span class="u">円/h</span></div>
+            <div class="fr"><label>学生スタッフ</label><input type="number" id="w-stu" value="930"><span class="u">円/h</span></div>
+            <div class="fr"><label>社保付きスタッフ</label><input type="number" id="w-sha" value="1100"><span class="u">円/h</span></div>
+            <div class="fr"><label>社員（月給）</label><input type="number" id="w-sei" value="210000"><span class="u">円/月</span></div>
+            <div class="fr"><label>リーダー手当</label><input type="number" id="w-lead" value="50"><span class="u">円/h</span></div>
+            <div class="fr"><label>深夜割増（22時〜）</label><input type="number" id="w-late" value="25"><span class="u">%増</span></div>
+            <div class="fr"><label>週末割増</label><input type="number" id="w-we" value="0"><span class="u">%増</span></div>
+            <div style="margin-top:12px;padding:12px;background:var(--surface2);border-radius:var(--radius);font-size:12px;color:var(--text2);line-height:1.9">
+              <div style="font-weight:700;margin-bottom:4px">📝 シフト入力の記号</div>
+              <code>F</code>=フライヤー　<code>C</code>=コンロ　<code>D</code>=ディシャップ<br>
+              <code>W</code>=洗い場　<code>S</code>=蕎麦コネ<br>
+              <code>補</code>=補助　<code>練</code>=練習（新人）　<code>L</code>=ラスト<br>
+              <span style="font-size:11px;color:var(--text3)">例: <code>F9-15</code>　<code>CD9-18</code>　<code>W17-L</code>　<code>練C18-L</code></span>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:right;margin-top:12px">
+          <button class="btn p" onclick="saveCond()"><i class="ti ti-cloud-upload"></i>保存</button>
+        </div>
+      </div>
+
+      <!-- SHIFT -->
+      <div class="pg" id="pg-shift">
+        <div class="shift-header">
+          <div class="wk-nav">
+            <button onclick="prevWk()"><i class="ti ti-chevron-left"></i></button>
+            <span class="wl" id="wklbl">—</span>
+            <button onclick="nextWk()"><i class="ti ti-chevron-right"></i></button>
+          </div>
+          <button class="btn p" id="gen-btn" onclick="genShift()"><i class="ti ti-bolt"></i>AI生成</button>
+          <button class="btn" onclick="saveShift()"><i class="ti ti-cloud-upload"></i>保存</button>
+          <button class="btn" onclick="expCSV()"><i class="ti ti-download"></i>CSV</button>
+          <button class="btn line-btn" onclick="sendLine()"><i class="ti ti-message-circle"></i>LINE</button>
+        </div>
+        <div class="cost-bar">
+          <div class="cost-item"><div class="cost-label">週間人件費（推計）</div><div class="cost-val" id="cv-week">¥—</div></div>
+          <div class="cost-item"><div class="cost-label">月間推計（×4）</div><div class="cost-val" id="cv-month">¥—</div></div>
+          <div class="cost-item"><div class="cost-label">延べ労働時間</div><div class="cost-val" id="cv-hours">—h</div></div>
+          <div class="cost-item"><div class="cost-label">週の出勤者数</div><div class="cost-val" id="cv-count">—名</div></div>
+        </div>
+        <div class="legend">
+          <span class="legend-item" style="background:var(--fryer-bg);color:var(--fryer-t)">F フライヤー</span>
+          <span class="legend-item" style="background:var(--conro-bg);color:var(--conro-t)">C コンロ</span>
+          <span class="legend-item" style="background:var(--dishup-bg);color:var(--dishup-t)">D ディシャップ</span>
+          <span class="legend-item" style="background:var(--wash-bg);color:var(--wash-t)">W 洗い場</span>
+          <span class="legend-item" style="background:var(--hall-bg);color:var(--hall-t)">ホール</span>
+          <span class="legend-item" style="background:var(--hojyo-bg);color:var(--hojyo-t)">補 補助</span>
+          <span class="legend-item" style="background:var(--renshu-bg);color:var(--renshu-t)">練 練習</span>
+        </div>
+        <div class="sec-tabs" id="sec-tabs">
+          <button class="sec-tab on" onclick="setSec('all')">全体</button>
+          <button class="sec-tab" onclick="setSec('kitchen-day')">昼キッチン</button>
+          <button class="sec-tab" onclick="setSec('kitchen-idle')">アイドルキッチン</button>
+          <button class="sec-tab" onclick="setSec('kitchen-night')">夜キッチン</button>
+          <button class="sec-tab" onclick="setSec('hall-day')">昼ホール</button>
+          <button class="sec-tab" onclick="setSec('hall-idle')">アイドルホール</button>
+          <button class="sec-tab" onclick="setSec('hall-night')">夜ホール</button>
+        </div>
+        <div class="hint" id="s-hint"></div>
+        <div class="shift-grid-wrap">
+          <table class="sgrid" id="sgtbl">
+            <thead id="sghead"></thead>
+            <tbody id="sgbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PAY -->
+      <div class="pg" id="pg-pay">
+        <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
+          <select id="pay-mo" style="padding:8px 11px;border:1.5px solid var(--border2);border-radius:var(--radius);font-size:12px;background:var(--surface);color:var(--text);font-family:inherit;-webkit-appearance:none"></select>
+          <button class="btn p" onclick="calcPay()"><i class="ti ti-refresh"></i>集計</button>
+          <button class="btn" onclick="expPayCSV()"><i class="ti ti-download"></i>CSV</button>
+        </div>
+        <div class="pay-sum" id="pay-sum"></div>
+        <div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
+          <table class="ptbl"><thead><tr><th>スタッフ</th><th>区分</th><th>日数</th><th>月間h</th><th>時給</th><th>基本給</th><th>手当</th><th>支給計</th></tr></thead>
+          <tbody id="pay-body"><tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">シフト入力後に集計してください</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- LINE -->
+      <div class="pg" id="pg-line">
+        <div class="card">
+          <div class="card-title"><i class="ti ti-brand-line" style="color:#06C755"></i>LINE Notify 連携</div>
+          <span class="line-st disc" id="l-badge"><i class="ti ti-circle-x"></i> 未接続</span>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+            <input type="password" id="l-tok" placeholder="LINE Notify トークン" style="flex:1;min-width:180px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--surface);color:var(--text);font-family:inherit">
+            <button class="btn p" onclick="connLine()"><i class="ti ti-plug"></i>接続</button>
+          </div>
+          <p style="font-size:11px;color:var(--text3)"><a href="https://notify-bot.line.me/" target="_blank" style="color:var(--accent)">notify-bot.line.me</a> でトークンを発行</p>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="ti ti-bell"></i>通知設定</div>
+          <div class="notif-item"><div><div style="font-weight:700">シフト確定通知</div><div style="font-size:11px;color:var(--text3);margin-top:2px">保存後すぐ送信</div></div><button class="tog on" onclick="this.classList.toggle('on')"></button></div>
+          <div class="notif-item"><div><div style="font-weight:700">前日リマインド</div><div style="font-size:11px;color:var(--text3);margin-top:2px">翌日出勤者へ前日20:00</div></div><button class="tog on" onclick="this.classList.toggle('on')"></button></div>
+          <div class="notif-item"><div><div style="font-weight:700">欠員アラート</div><div style="font-size:11px;color:var(--text3);margin-top:2px">人数不足を即時通知</div></div><button class="tog on" onclick="this.classList.toggle('on')"></button></div>
+          <div class="notif-item"><div><div style="font-weight:700">月次給与サマリー</div><div style="font-size:11px;color:var(--text3);margin-top:2px">月末に店長へ</div></div><button class="tog" onclick="this.classList.toggle('on')"></button></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="ti ti-eye"></i>送信プレビュー</div>
+          <button class="btn" onclick="prevLine()" style="margin-bottom:9px"><i class="ti ti-refresh"></i>更新</button>
+          <div class="prev-box" id="l-prev">シフトを入力してから確認してください。</div>
+        </div>
+      </div>
+
+      <!-- スタッフ用マイページ -->
+      <div class="pg" id="pg-mypage">
+        <div class="card">
+          <div class="card-title"><i class="ti ti-user"></i>マイ設定</div>
+          <p style="font-size:12px;color:var(--text3);margin-bottom:14px">自分の勤務希望を設定してください。店長がシフトを組む時に反映されます。</p>
+          <div class="sec-div">勤務可能曜日 <span style="font-weight:400;font-size:10px;color:var(--text3)">（青 = 出勤可）</span></div>
+          <div class="day-row" id="my-days" style="margin-bottom:12px">
+            <button type="button" class="db on" data-d="0">月</button><button type="button" class="db on" data-d="1">火</button>
+            <button type="button" class="db on" data-d="2">水</button><button type="button" class="db on" data-d="3">木</button>
+            <button type="button" class="db on" data-d="4">金</button><button type="button" class="db on" data-d="5">土</button>
+            <button type="button" class="db on" data-d="6">日</button>
+          </div>
+          <div class="sec-div">昼も入れる曜日 <span style="font-weight:400;font-size:10px;color:var(--text3)">（青 = 昼も可）</span></div>
+          <div class="day-row" id="my-day-also" style="margin-bottom:12px">
+            <button type="button" class="db" data-d="0">月</button><button type="button" class="db" data-d="1">火</button>
+            <button type="button" class="db" data-d="2">水</button><button type="button" class="db" data-d="3">木</button>
+            <button type="button" class="db" data-d="4">金</button><button type="button" class="db" data-d="5">土</button>
+            <button type="button" class="db" data-d="6">日</button>
+          </div>
+          <div class="sec-div">休暇希望日 <span style="font-weight:400;font-size:10px;color:var(--text3)">（シフトに入らない日）</span></div>
+          <div id="my-vacation-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+          <button type="button" class="btn" onclick="addMyVacationRow()" style="width:100%;justify-content:center;margin-bottom:16px">
+            <i class="ti ti-plus"></i>休暇希望を追加
+          </button>
+          <button class="btn p" onclick="saveMyPage()" style="width:100%;justify-content:center">
+            <i class="ti ti-check"></i>保存する
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <button class="bn-btn active" data-pg="staff" onclick="go('staff')"><i class="ti ti-users"></i><span>スタッフ</span></button>
+      <button class="bn-btn" data-pg="cond" onclick="go('cond')"><i class="ti ti-settings"></i><span>条件</span></button>
+      <button class="bn-btn" data-pg="shift" onclick="go('shift')"><i class="ti ti-calendar"></i><span>シフト</span></button>
+      <button class="bn-btn" data-pg="pay" onclick="go('pay')"><i class="ti ti-coin"></i><span>給与</span></button>
+      <button class="bn-btn" data-pg="line" onclick="go('line')"><i class="ti ti-message-circle"></i><span>LINE</span></button>
+      <button class="bn-btn" data-pg="mypage" id="bn-mypage" onclick="go('mypage')" style="display:none"><i class="ti ti-user"></i><span>マイページ</span></button>
+    </div>
+  </nav>
+</div>
+
+<!-- MODAL -->
+<div class="backdrop" id="mod-staff">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="xb" onclick="closeMod()"><i class="ti ti-x"></i></button>
+    <h2 id="mod-title">スタッフ追加</h2>
+    <input type="hidden" id="eid">
+    <div class="mf"><label>名前</label><input type="text" id="f-name" placeholder="山田 太郎"></div>
+    <div class="mf"><label>区分</label>
+      <select id="f-type" onchange="onTypeChange(this.value)">
+        <option value="general">スタッフ</option>
+        <option value="student">学生スタッフ</option>
+        <option value="shahou">社保付きスタッフ</option>
+        <option value="seiki">社員</option>
+      </select>
+    </div>
+    <div class="mf"><label>個人パスワード（スタッフがログインに使用）</label>
+      <input type="text" id="f-password" placeholder="例: nishijin123" autocomplete="off" oninput="colorField(this)">
+    </div>
+    <div class="mf" id="wage-field"><label>時給（空欄で設定の時給を使用）</label><input type="number" id="f-wage" placeholder="例: 980" oninput="colorField(this)"></div>
+    <div class="mf" id="monthly-field" style="display:none"><label>月給（円）</label><input type="number" id="f-monthly" placeholder="例: 210000" oninput="colorField(this)"></div>
+    <div class="mf"><label>週の最大希望時間（空欄で区分の上限）</label><input type="number" id="f-maxh" placeholder="例: 20" oninput="colorField(this)" style="width:100%;padding:11px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit"></div>
+    <div class="mf"><label>週の最大出勤日数（空欄で制限なし・社員/社保付きは最低保証）</label><input type="number" id="f-maxd" placeholder="例: 5" min="1" max="7" oninput="colorField(this);calcMaxH(this)" style="width:100%;padding:11px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit"></div>
+    <div class="sec-div">担当エリア</div>
+    <div class="mf">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+        <button type="button" class="area-btn on" data-area="both" onclick="setArea('both')"><i class="ti ti-arrows-exchange" style="font-size:16px;display:block;margin-bottom:3px"></i>両方</button>
+        <button type="button" class="area-btn" data-area="kitchen" onclick="setArea('kitchen')"><i class="ti ti-chef-hat" style="font-size:16px;display:block;margin-bottom:3px"></i>キッチン</button>
+        <button type="button" class="area-btn" data-area="hall" onclick="setArea('hall')"><i class="ti ti-layout" style="font-size:16px;display:block;margin-bottom:3px"></i>ホール</button>
+      </div>
+    </div>
+    <div id="kit-section">
+      <div class="sec-div">厨房ポジション <span style="font-weight:400;font-size:10px;color:var(--text3)">（タップで選択 → 補/練を追加設定可）</span></div>
+      <div class="mf"><div id="kit-sk" style="display:flex;flex-direction:column;gap:6px"></div></div>
+    </div>
+    <div id="flo-section">
+      <div class="sec-div">ホールポジション <span style="font-weight:400;font-size:10px;color:var(--text3)">（タップで選択 → 補/練を追加設定可）</span></div>
+      <div class="mf"><div id="flo-sk" style="display:flex;flex-direction:column;gap:6px"></div></div>
+    </div>
+    <div class="sec-div">勤務可能曜日 <span style="font-weight:400;font-size:10px;color:var(--text3)">（青 = 出勤可）</span></div>
+    <div class="mf">
+      <div class="day-row" id="mod-days">
+        <button type="button" class="db on" data-d="0">月</button><button type="button" class="db on" data-d="1">火</button>
+        <button type="button" class="db on" data-d="2">水</button><button type="button" class="db on" data-d="3">木</button>
+        <button type="button" class="db on" data-d="4">金</button><button type="button" class="db on" data-d="5">土</button>
+        <button type="button" class="db on" data-d="6">日</button>
+      </div>
+    </div>
+    <div class="mf">
+      <div class="sec-div">希望シフト帯</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+        <button type="button" class="area-btn on" data-pref="any" onclick="setPref('any')">
+          <i class="ti ti-clock" style="font-size:16px;display:block;margin-bottom:3px"></i>どちらでも
+        </button>
+        <button type="button" class="area-btn" data-pref="day" onclick="setPref('day')">
+          <i class="ti ti-sun" style="font-size:16px;display:block;margin-bottom:3px"></i>昼のみ
+        </button>
+        <button type="button" class="area-btn" data-pref="night" onclick="setPref('night')">
+          <i class="ti ti-moon" style="font-size:16px;display:block;margin-bottom:3px"></i>夜のみ
+        </button>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;font-size:13px;font-weight:700;color:var(--text3);background:var(--surface2);transition:all .15s" id="idle-opt-label" onclick="toggleIdleOpt()">
+        <input type="checkbox" id="pref-idle-opt" style="display:none">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px solid var(--text3);border-radius:4px;font-size:14px;flex-shrink:0;transition:all .15s" id="idle-ck-box"></span>
+        <i class="ti ti-coffee" style="font-size:16px;color:#5F5E5A"></i>アイドルタイム（15〜18時）も入れる
+      </label>
+      <!-- 夜希望でも昼も入れる曜日 -->
+      <div id="day-also-wrap" style="margin-top:8px">
+        <div style="font-size:11px;color:var(--text3);font-weight:700;margin-bottom:5px;padding:4px 2px">
+          <i class="ti ti-sun" style="color:#BA7517"></i> 昼も入れる曜日（オプション・青=昼も可）
+        </div>
+        <div class="day-row" id="mod-day-also">
+          <button type="button" class="db" data-d="0">月</button><button type="button" class="db" data-d="1">火</button>
+          <button type="button" class="db" data-d="2">水</button><button type="button" class="db" data-d="3">木</button>
+          <button type="button" class="db" data-d="4">金</button><button type="button" class="db" data-d="5">土</button>
+          <button type="button" class="db" data-d="6">日</button>
+        </div>
+      </div>
+      <div class="sec-div" style="margin-top:12px">スキル</div>
+      <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;font-size:13px;font-weight:700;color:var(--text3);background:var(--surface2);transition:all .15s" id="soba-skill-label" onclick="toggleSobaSkill()">
+        <input type="checkbox" id="skill-sobaneri" style="display:none">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px solid var(--text3);border-radius:4px;font-size:14px;flex-shrink:0;transition:all .15s" id="soba-ck-box"></span>
+        <i class="ti ti-noodles" style="font-size:16px;color:var(--soba-t)"></i>蕎麦コネができる
+      </label>
+    </div>
+    <!-- 休暇希望 -->
+    <div class="sec-div">休暇希望日 <span style="font-weight:400;font-size:10px;color:var(--text3)">（シフト生成時に除外）</span></div>
+    <div class="mf" id="vacation-list" style="display:flex;flex-direction:column;gap:6px"></div>
+    <button type="button" class="btn" onclick="addVacationRow()" style="width:100%;justify-content:center;margin-bottom:4px">
+      <i class="ti ti-plus"></i>休暇希望を追加
+    </button>
+    <div class="macts">
+      <button class="btn danger" id="del-btn" onclick="delStaff()" style="display:none"><i class="ti ti-trash"></i>削除</button>
+      <button class="btn" onclick="closeMod()">キャンセル</button>
+      <button class="btn p" onclick="saveStaff()"><i class="ti ti-check"></i>保存</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPA_URL='https://nmtgwbfjueljcdjfkngr.supabase.co';
+const SUPA_KEY='sb_publishable_wZy_G-2zy5wxKS27HstXvA_FBbckimh';
+const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+
+const PASS={manager:'west2024'};
+let role=null,lrole='manager',currentStaffId=null;
+function setLR(r){
+  lrole=r;
+  document.querySelectorAll('.login-tab').forEach((b,i)=>b.classList.toggle('on',['manager','staff'][i]===r));
+  document.getElementById('login-manager-area').style.display=r==='manager'?'block':'none';
+  document.getElementById('login-staff-area').style.display=r==='staff'?'block':'none';
+  document.getElementById('login-hint-mgr').style.display=r==='manager'?'block':'none';
+  document.getElementById('login-hint-st').style.display=r==='staff'?'block':'none';
+  if(r==='staff')populateStaffSelect();
+}
+async function populateStaffSelect(){
+  const sel=document.getElementById('l-staff-name');
+  sel.innerHTML='<option value="">-- 名前を選んでください --</option>';
+  const {data}=await sb.from('staff').select('id,name').order('name');
+  if(data)data.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.name;sel.appendChild(o);});
+}
+async function doLogin(){
+  const err=document.getElementById('lerr');
+  if(lrole==='manager'){
+    const pw=document.getElementById('lpw').value;
+    if(pw===PASS.manager){role='manager';currentStaffId=null;loginSuccess();}
+    else showLoginErr('パスワードが違います');
+  } else {
+    const sid=document.getElementById('l-staff-name').value;
+    const pw=document.getElementById('lpw-staff').value;
+    if(!sid){showLoginErr('名前を選んでください');return;}
+    const {data}=await sb.from('staff').select('id,name,password').eq('id',sid).maybeSingle();
+    if(data&&data.password&&data.password===pw){role='staff';currentStaffId=sid;loginSuccess();}
+    else showLoginErr('パスワードが違います');
+  }
+}
+function showLoginErr(msg){
+  const err=document.getElementById('lerr');
+  err.textContent=msg;err.style.display='block';
+  setTimeout(()=>err.style.display='none',2500);
+}
+function loginSuccess(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('tbrole').textContent=role==='manager'?'店長':'スタッフ';
+  applyRole();init();
+}
+function doLogout(){
+  role=null;currentStaffId=null;lrole='manager';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('lpw').value='';
+  if(document.getElementById('lpw-staff'))document.getElementById('lpw-staff').value='';
+  if(document.getElementById('l-staff-name'))document.getElementById('l-staff-name').value='';
+  // 店長タブに戻す
+  setLR('manager');
+}
+function applyRole(){
+  const mgr=role==='manager';
+  const isStaff=role==='staff';
+  document.getElementById('tbacts').style.display=mgr?'flex':'none';
+  document.getElementById('gen-btn').style.display=mgr?'inline-flex':'none';
+  // 全ナビをいったん表示に戻す
+  document.querySelectorAll('[data-pg]').forEach(b=>b.style.display='');
+  const myBtn=document.getElementById('bn-mypage');
+  if(isStaff){
+    // スタッフはマイページ・シフト閲覧のみ
+    document.querySelectorAll('[data-pg="cond"],[data-pg="pay"],[data-pg="line"],[data-pg="staff"]').forEach(b=>b.style.display='none');
+    if(myBtn)myBtn.style.display='';
+  } else {
+    // 店長はマイページ非表示
+    if(myBtn)myBtn.style.display='none';
+  }
+}
+
+const KIT=[
+  {key:'fryer',   lbl:'F フライヤー', subOpt:true},
+  {key:'conro',   lbl:'C コンロ',     subOpt:true},
+  {key:'dishup',  lbl:'D ディシャップ',subOpt:true},
+  {key:'dishwash',lbl:'W 洗い場',     subOpt:false},
+  {key:'morning', lbl:'朝準備',        subOpt:false},
+];
+const FLO=[
+  {key:'morning_hall',lbl:'朝準備（ホール）',subOpt:false},
+  {key:'cashier',lbl:'レジ',subOpt:false},
+  {key:'hall',lbl:'ホール',subOpt:false},
+  {key:'leader',lbl:'リーダー',subOpt:false},
+];
+const ABIL=[];
+const ALL=[...KIT,...FLO];
+const KIT_KEYS=KIT.map(x=>x.key);
+const DN=['月','火','水','木','金','土','日'];
+const PAL=['#B5D4F4:#0C447C','#9FE1CB:#085041','#CECBF6:#3C3489','#FAC775:#633806','#F5C4B3:#712B13','#C0DD97:#27500A','#F4C0D1:#72243E','#85B7EB:#1A3A6B','#F0B3D0:#5C1A3A','#A8D8B9:#0A3A20','#FFC8A2:#5C2500','#D4B5F4:#2C0A7C'];
+const TLBL={general:'スタッフ',student:'学生',parttime:'スタッフ',shahou:'社保付き',seiki:'社員'};
+const TCLS={general:'tb-general',student:'tb-student',parttime:'tb-general',shahou:'tb-shahou',seiki:'tb-seiki'};
+// 必要人数: {ポジションキー: {時間帯: [月,火,水,木,金,土,日]}}
+// 時間帯: lunch/idle/dinner
+function makeDefArr(w,e){return[w,w,w,w,w,e,e];}
+const KIT_DEF={
+  fryer:   {lunch:makeDefArr(2,2),idle:makeDefArr(1,1),dinner:makeDefArr(1,1)},
+  conro:   {lunch:makeDefArr(1,2),idle:makeDefArr(1,1),dinner:makeDefArr(1,2)},
+  dishup:  {lunch:makeDefArr(2,3),idle:makeDefArr(1,1),dinner:makeDefArr(2,2)},
+  dishwash:{lunch:makeDefArr(1,2),idle:makeDefArr(1,1),dinner:makeDefArr(1,1)},
+  morning: {lunch:makeDefArr(1,1),idle:makeDefArr(0,0),dinner:makeDefArr(0,0)},
+  other_kit:{lunch:makeDefArr(0,0),idle:makeDefArr(0,0),dinner:makeDefArr(0,0)},
+};
+const FLO_DEF={
+  morning_hall:{lunch:makeDefArr(1,1),idle:makeDefArr(0,0),dinner:makeDefArr(0,0)},
+  cashier:  {lunch:makeDefArr(2,3),idle:makeDefArr(1,1),dinner:makeDefArr(1,2)},
+  hall:     {lunch:makeDefArr(2,3),idle:makeDefArr(1,1),dinner:makeDefArr(2,3)},
+  leader:   {lunch:makeDefArr(1,1),idle:makeDefArr(1,1),dinner:makeDefArr(1,1)},
+  other_flo:{lunch:makeDefArr(0,0),idle:makeDefArr(0,0),dinner:makeDefArr(0,0)},
+};
+
+// 祝日キャッシュ
+let holidaySet=new Set();
+async function loadHolidays(){
+  try{
+    const year=new Date().getFullYear();
+    const res=await fetch(`https://holidays-jp.github.io/api/v1/${year}/date.json`);
+    const data=await res.json();
+    holidaySet=new Set(Object.keys(data));
+    // 翌年分も取得
+    const res2=await fetch(`https://holidays-jp.github.io/api/v1/${year+1}/date.json`);
+    const data2=await res2.json();
+    Object.keys(data2).forEach(d=>holidaySet.add(d));
+  }catch(e){console.log('祝日取得失敗（オフラインかも）:',e);}
+}
+function isHoliday(dateStr){return holidaySet.has(dateStr);}
+// 曜日インデックスを取得（祝日は6=日扱い）
+function getDayIdx(d){
+  const base=(d.getDay()+6)%7;// 0=月〜6=日
+  if(isHoliday(fmtD(d)))return 6;// 祝日→日曜扱い
+  return base;
+}
+
+let staffSearchKw='';
+function onStaffSearch(kw){
+  staffSearchKw=kw.trim();
+  renderStaff();
+}
+let staff=[],shiftData={},wkOff=0,lineConn=false,curSec='all';
+let weDays=new Set([5,6]);
+
+function ac(i){const p=PAL[i%PAL.length].split(':');return{bg:p[0],tx:p[1]};}
+function ini(n){return n.split(/\s+/).map(x=>x[0]||'').join('').slice(0,2);}
+function tl(t){return TLBL[t]||t;}
+function tbadge(t){return`<span class="type-badge ${TCLS[t]||'tb-general'}">${tl(t)}</span>`;}
+function cv(id){const e=document.getElementById(id);return e?e.value:'';}
+function mxH(s){if(s.max_h)return s.max_h;const v={general:+cv('c-gen')||28,student:+cv('c-stu')||20,parttime:+cv('c-gen')||28,shahou:+cv('c-sha')||30,seiki:+cv('c-sei')||40};return v[s.type]||28;}
+function bw(s){if(s.wage)return s.wage;const v={general:+cv('w-gen')||950,student:+cv('w-stu')||930,parttime:+cv('w-gen')||950,shahou:+cv('w-sha')||1100,seiki:null};return v[s.type];}
+function wdisp(s){
+  if(role!=='manager') return ''; // スタッフには給与非表示
+  if(s.type==='seiki') return '月給¥'+(s.wage||+cv('w-sei')||210000).toLocaleString();
+  return '¥'+(bw(s)||0).toLocaleString()+'/h';
+}
+function isWE(d){
+  // dがDate型の場合とインデックスの場合に対応
+  if(d instanceof Date){
+    const idx=getDayIdx(d);
+    return weDays.has(idx);
+  }
+  return weDays.has(d);
+}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function fmtD(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+
+function getWkDates(){
+  // 2025-05-11をwkOff=0の週とする
+  const base=new Date(2025,4,11+wkOff*7);
+  const mon=new Date(base);mon.setDate(base.getDate()-((base.getDay()+6)%7));
+  return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});
+}
+function renderWkLbl(){
+  const d=getWkDates()[0];
+  document.getElementById('wklbl').textContent=`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（月）〜`;
+}
+function prevWk(){wkOff--;renderWkLbl();loadShift();}
+function nextWk(){wkOff++;renderWkLbl();loadShift();}
+
+// DB
+async function loadStaff(){
+  const {data,error}=await sb.from('staff').select('*').order('created_at');
+  if(error){console.error(error);return;}
+  staff=data||[];renderStaff();
+}
+async function saveStaffDB(obj,id){
+  if(id){const {error}=await sb.from('staff').update(obj).eq('id',id);if(error)throw error;}
+  else{const {error}=await sb.from('staff').insert(obj);if(error)throw error;}
+  await loadStaff();
+}
+async function delStaffDB(id){const {error}=await sb.from('staff').delete().eq('id',id);if(error)throw error;await loadStaff();}
+async function loadShift(){
+  const ws=fmtD(getWkDates()[0]);
+  const {data,error}=await sb.from('shifts').select('*').eq('week_start',ws).maybeSingle();
+  if(error){console.error(error);return;}
+  shiftData=data?data.schedule:{};
+  renderGrid();
+}
+async function saveShiftDB(){
+  const ws=fmtD(getWkDates()[0]);
+  const {data:ex}=await sb.from('shifts').select('id').eq('week_start',ws).maybeSingle();
+  if(ex)await sb.from('shifts').update({schedule:shiftData,updated_at:new Date().toISOString()}).eq('week_start',ws);
+  else await sb.from('shifts').insert({week_start:ws,schedule:shiftData});
+}
+
+// STAFF RENDER
+function renderStaff(){
+  const g=document.getElementById('sgrid');
+  // キーワードフィルタ
+  const kw=staffSearchKw;
+  const filtered=kw
+    ? staff.filter(s=>s.name.includes(kw)||s.name.replace(/\s/g,'').includes(kw.replace(/\s/g,'')))
+    : staff;
+
+  if(!filtered.length){
+    g.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3)">
+      <i class="ti ti-search" style="font-size:28px;display:block;margin-bottom:8px;opacity:.3"></i>
+      <p>${kw?`「${kw}」に一致するスタッフが見つかりません`:'スタッフを追加してください'}</p>
+    </div>`;
+    return;
+  }
+  const mgr=role==='manager';
+  const SECTIONS=[
+    {label:'社員', icon:'ti-star', color:'var(--w-red)', desc:'全ポジション — 不足時に穴埋め',
+     filter:s=>s.type==='seiki'},
+    {label:'昼キッチン', icon:'ti-sun', color:'var(--w-green)', desc:'',
+     filter:s=>{
+       if(s.type==='seiki')return false;
+       const sk=getSkillKeys(s);
+       if(!sk.some(k=>KIT_KEYS.includes(k)))return false;
+       const p=s.pref||'any';
+       return p==='any'||p==='day'||p==='day_idle'||p==='day_night';
+     }},
+    {label:'夜キッチン', icon:'ti-moon', color:'#3C3289', desc:'',
+     filter:s=>{
+       if(s.type==='seiki')return false;
+       const sk=getSkillKeys(s);
+       if(!sk.some(k=>KIT_KEYS.includes(k)))return false;
+       const p=s.pref||'any';
+       return p==='night'||p==='idle_night';
+     }},
+    {label:'昼ホール', icon:'ti-layout', color:'#7C5000', desc:'',
+     filter:s=>{
+       if(s.type==='seiki')return false;
+       const sk=getSkillKeys(s);
+       // キッチン系スキルがある人は除外
+       if(sk.some(k=>KIT_KEYS.includes(k)))return false;
+       // cashierかhallを持つ人のみ（leaderだけはホールではない）
+       if(!sk.some(k=>['cashier','hall'].includes(k)))return false;
+       const p=s.pref||'any';
+       return p==='any'||p==='day'||p==='day_idle'||p==='day_night';
+     }},
+    {label:'夜ホール', icon:'ti-moon', color:'var(--hall-t)', desc:'',
+     filter:s=>{
+       if(s.type==='seiki')return false;
+       const sk=getSkillKeys(s);
+       // キッチン系スキルがある人は除外
+       if(sk.some(k=>KIT_KEYS.includes(k)))return false;
+       // cashierかhallを持つ人のみ（leaderだけはホールではない）
+       if(!sk.some(k=>['cashier','hall'].includes(k)))return false;
+       const p=s.pref||'any';
+       return p==='night'||p==='idle_night';
+     }},
+  ];
+
+  function makeCard(s){
+    const idx=staff.indexOf(s), c=ac(idx), sk=s.skills||[];
+    const tags=sk.map(item=>{
+      const key=typeof item==='string'?item:item.key;
+      const hojyo=typeof item==='object'&&item.hojyo;
+      const renshu=typeof item==='object'&&item.renshu;
+      const p=ALL.find(x=>x.key===key); if(!p)return'';
+      const name=p.lbl.split(' ')[0];
+      const b=(hojyo?`<span style="font-size:9px;background:var(--hojyo-bg);color:var(--hojyo-t);padding:1px 4px;border-radius:3px;margin-left:2px">補</span>`:'')+
+              (renshu?`<span style="font-size:9px;background:var(--renshu-bg);color:var(--renshu-t);padding:1px 4px;border-radius:3px;margin-left:2px">練</span>`:'');
+      return`<span class="tg ${key}" style="display:inline-flex;align-items:center">${name}${b}</span>`;
+    }).join('');
+    const sobaTag=(s.abilities||[]).includes('sobaneri')?`<span class="tg" style="background:var(--soba-bg);color:var(--soba-t)">蕎麦コネ</span>`:'';
+    const wageStr=mgr?`<span style="font-size:11px;color:var(--text3);margin-left:4px">${wdisp(s)}</span>`:'';
+    const maxhStr=s.max_h?`<span style="font-size:10px;color:var(--text3);margin-left:4px">最大${s.max_h}h/週</span>`:'';
+    const clk=mgr?`onclick="editStaff('${s.id}')"`:'' ;
+    const badge=`<span class="type-badge ${TCLS[s.type]||'tb-general'}" style="font-size:9px;padding:1px 6px">${TLBL[s.type]||'スタッフ'}</span>`;
+    return`<div class="scard" ${clk}>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div class="av" style="background:${c.bg};color:${c.tx};width:32px;height:32px;font-size:11px">${ini(s.name)}</div>
+        <div style="min-width:0">
+          <div style="font-size:13px;font-weight:700">${s.name}${wageStr}${maxhStr}</div>
+          <div style="margin-top:2px">${badge}</div>
+        </div>
+      </div>
+      <div class="tgs">${tags}${sobaTag}</div>
+    </div>`;
+  }
+
+  let html='';
+
+  SECTIONS.forEach(sec=>{
+    const members=filtered.filter(sec.filter);
+    if(!members.length)return;
+    html+=`<div style="grid-column:1/-1;margin-top:8px">
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:2.5px solid ${sec.color};margin-bottom:10px">
+        <i class="ti ${sec.icon}" style="font-size:15px;color:${sec.color}"></i>
+        <span style="font-size:13px;font-weight:700;color:${sec.color}">${sec.label}</span>
+        <span style="font-size:12px;color:var(--text3)">${members.length}名</span>
+        ${sec.desc?`<span style="font-size:10px;color:var(--w-red);background:var(--w-red-lt);padding:2px 8px;border-radius:20px;font-weight:700;margin-left:4px">${sec.desc}</span>`:''}
+      </div>
+    </div>`;
+    members.forEach(s=>{html+=makeCard(s);});
+    html+=`<div style="grid-column:1/-1;margin-bottom:4px"></div>`;
+  });
+
+  g.innerHTML=html;
+  document.getElementById('st0').textContent=staff.length;
+  document.getElementById('st1').textContent=staff.filter(s=>getSkillKeys(s).includes('leader')).length;
+  document.getElementById('st2').textContent=staff.filter(s=>getSkillKeys(s).some(k=>KIT_KEYS.includes(k))).length;
+  document.getElementById('st3').textContent=staff.filter(s=>getSkillKeys(s).includes('sobaneri')).length;
+}
+
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function getCls(v){
+  if(!v||!v.trim())return'';
+  const m=v.trim().match(/^(練|補)?([FCDWS])?/);
+  if(!m)return'ph';
+  if(m[1]==='練')return'pr';
+  if(m[1]==='補')return'pb';
+  const c={F:'pf',C:'pc',D:'pd',W:'pw',S:'ps'};
+  return c[m[2]]||'ph';
+}
+function parseLastH(){
+  const v=cv('c-last')||'22:30';
+  const parts=v.split(':');
+  return parseInt(parts[0])+(parseInt(parts[1]||0)/60);
+}
+function parseH(v){
+  if(!v||!v.trim())return 0;
+  const lastH=parseLastH();
+  const m=v.match(/(\d+(?:\.\d+)?)-([L\d]+(?:\.\d+)?)/);
+  if(!m)return 0;
+  const s=parseFloat(m[1]),e=m[2]==='L'?lastH:parseFloat(m[2]);
+  return Math.max(0,Math.round((e-s)*10)/10);
+}
+function getSkillKeys(s){
+  return (s.skills||[]).map(sk=>typeof sk==='string'?sk:sk.key);
+}
+function getSkillLevel(s, key){
+  const sk=(s.skills||[]).find(x=>(typeof x==='string'?x:x.key)===key);
+  if(!sk)return null;
+  return typeof sk==='string'?'normal':sk.level||'normal';
+}
+function prefIncludes(pref, band){
+  // pref が 'any','day','night','idle','day_night','day_idle','idle_night' のどれかで band を含むか判定
+  if(!pref||pref==='any')return true;
+  if(pref===band)return true;
+  if(pref==='day_night')return band==='day'||band==='night';
+  if(pref==='day_idle')return band==='day'||band==='idle';
+  if(pref==='idle_night')return band==='idle'||band==='night';
+  return false;
+}
+function filterSt(){
+  if(curSec==='all')return staff;
+  const isKit=curSec.startsWith('kitchen');
+  const isIdle=curSec.endsWith('idle');
+  const isDay=curSec.endsWith('day');
+  const isNight=curSec.endsWith('night');
+  const band=isIdle?'idle':isDay?'day':'night';
+  return staff.filter(s=>{
+    // 社員は常に含める
+    if(s.type==='seiki')return true;
+    const sk=getSkillKeys(s);
+    const hk=sk.some(k=>KIT_KEYS.includes(k));
+    const hf=sk.some(k=>['cashier','hall'].includes(k));
+    if(isKit&&!hk)return false;
+    if(!isKit&&!hf)return false;
+    return prefIncludes(s.pref||'any', band);
+  });
+}
+function renderGrid(){
+  const dates=getWkDates();
+  // 社員を先頭に、それ以外はそのまま
+  const fs=filterSt().sort((a,b)=>{
+    if(a.type==='seiki'&&b.type!=='seiki')return -1;
+    if(a.type!=='seiki'&&b.type==='seiki')return 1;
+    return 0;
+  });
+  const mgr=role==='manager';
+  document.getElementById('sghead').innerHTML=`<tr>
+    <th class="name-th">スタッフ</th>
+    ${dates.map((d,i)=>{const we=isWE(d);return`<th class="${we?'we-th':''}">
+      ${DN[i]}<br><span style="font-size:9px;font-weight:500">${d.getMonth()+1}/${d.getDate()}${isHoliday(fmtD(d))?'🎌':''}</span></th>`;}).join('')}
+    <th style="min-width:80px;text-align:right">週計/給与</th>
+  </tr>`;
+
+  let totCost=0,totH=0,totPpl=0,body='';
+  let lastWasSeiki=false;
+  fs.forEach((s,si)=>{
+    const c=ac(staff.indexOf(s)),sid=s.id;
+    if(!shiftData[sid])shiftData[sid]={};
+    // 社員とスタッフの区切り線
+    if(si>0&&s.type!=='seiki'&&lastWasSeiki){
+      body+=`<tr><td colspan="${dates.length+2}" style="padding:0;height:3px;background:var(--w-red);opacity:.4"></td></tr>`;
+    }
+    lastWasSeiki=s.type==='seiki';
+    let wkH=0;
+    const isSei=s.type==='seiki';
+    const lastH=parseLastH();
+    const cells=dates.map(d=>{
+      const key=fmtD(d),val=shiftData[sid][key]||'';
+      wkH+=parseH(val);
+      const ro=mgr?'':'readonly';
+      // 社員は実際のシフト値を解析して表示
+      if(isSei&&val){
+        const codeMatch=val.match(/^([FCDWS])?/);
+        const posCode=codeMatch?codeMatch[1]||'':'';
+        // 時間範囲を取得
+        const timeMatch=val.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?|L)/);
+        if(timeMatch){
+          const startT=parseFloat(timeMatch[1]);
+          const endT=timeMatch[2]==='L'?lastH:parseFloat(timeMatch[2]);
+          // 時間帯ごとに分割
+          const lunchPart =startT<15&&endT>9  ?`${posCode}${startT}-${Math.min(endT,15)}`:'';
+          const idlePart  =startT<18&&endT>15 ?`${posCode}${Math.max(startT,15)}-${Math.min(endT,18)}`:'';
+          const dinnerPart=endT>17            ?`${posCode}${Math.max(startT,17)}-L`:'';
+          const isMorningOnly=endT<=12;// 9-12は朝準備専用
+          const parts=isMorningOnly
+            ?[{val:`${posCode}${startT}-${endT}`,label:'朝準備'}]
+            :[
+              {val:lunchPart, label:'昼'},
+              {val:idlePart,  label:'ｱｲﾄﾞﾙ'},
+              {val:dinnerPart,label:'夜'},
+            ].filter(p=>p.val);
+          return`<td style="padding:2px 3px;vertical-align:middle">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              ${parts.map(p=>`<div style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:${p.label==='昼'?'var(--fryer-bg)':p.label==='朝準備'?'var(--kama-bg)':p.label==='ｱｲﾄﾞﾙ'?'var(--hojyo-bg)':'var(--dishup-bg)'};color:${p.label==='昼'?'var(--fryer-t)':p.label==='朝準備'?'var(--kama-t)':p.label==='ｱｲﾄﾞﾙ'?'var(--hojyo-t)':'var(--dishup-t)'};text-align:center">${p.val}</div>`).join('')}
+              <input type="hidden" data-sid="${sid}" data-date="${key}" value="${val}">
+            </div>
+          </td>`;
+        }
+      }
+      const cls=getCls(val);
+      return`<td><input class="ci ${cls}" ${ro} value="${val}" data-sid="${sid}" data-date="${key}" onchange="onCC(this)" oninput="onCI(this)" placeholder="—"></td>`;
+    }).join('');
+    const wage=bw(s)||950,isL=getSkillKeys(s).includes('leader');
+    const hr=wage+(isL?+cv('w-lead')||50:0);
+    const cost=s.type==='seiki'?Math.round((+cv('w-sei')||210000)/4):Math.round(wkH*hr);
+    totCost+=cost;totH+=wkH;if(wkH>0)totPpl++;
+    // K/Hバッジ
+    const skk=getSkillKeys(s);
+    const hasKit=skk.some(k=>KIT_KEYS.includes(k));
+    const hasFlo=skk.some(k=>['cashier','hall'].includes(k));
+    const areaBadge=hasKit&&hasFlo
+      ?`<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:#E8F0FB;color:#1A3A8B;margin-left:3px">K</span><span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--hall-bg);color:var(--hall-t);margin-left:2px">H</span>`
+      :hasKit?`<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:#E8F0FB;color:#1A3A8B;margin-left:3px">K</span>`
+      :hasFlo?`<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--hall-bg);color:var(--hall-t);margin-left:3px">H</span>`:'';
+    body+=`<tr data-sid="${sid}">
+      <td class="name-td">
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="width:26px;height:26px;border-radius:50%;background:${c.bg};color:${c.tx};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${ini(s.name)}</div>
+          <div>
+            <div style="font-weight:700;font-size:12px;display:flex;align-items:center">${s.name}${areaBadge}</div>
+            <div style="font-size:10px;color:var(--text3)">${tl(s.type)}</div>
+          </div>
+        </div>
+      </td>${cells}
+      <td class="sum-td">
+        <div style="font-weight:700;font-size:13px" id="wh-${sid}">${wkH}h</div>
+        <div style="font-size:10px;color:var(--text3)" id="wc-${sid}">¥${cost.toLocaleString()}</div>
+      </td>
+    </tr>`;
+  });
+  // 集計行
+  const cnts=dates.map(d=>{const key=fmtD(d);const n=fs.filter(s=>shiftData[s.id]&&shiftData[s.id][key]&&shiftData[s.id][key].trim()).length;return`<td style="font-size:11px;font-weight:700;color:${n>=3?'var(--accent-dark)':'var(--red)'}">${n}名</td>`;}).join('');
+  body+=`<tr class="cnt-row"><td class="name-td">出勤人数</td>${cnts}<td class="sum-td"></td></tr>`;
+  document.getElementById('sgbody').innerHTML=body;
+  updateCostBar(totCost,totH,totPpl);
+  if(!mgr)document.querySelectorAll('.ci').forEach(e=>e.readOnly=true);
+}
+function onCI(el){el.className='ci '+getCls(el.value);}
+function onSeiCC(el,dateKey){
+  // 社員の3分割セルが変更された時、元のshiftDataは変えずにセルの色だけ更新
+  el.className='ci '+getCls(el.value);
+  // 実際の保存は手動で行う（onCC相当）
+  const sid=el.dataset.sid;
+  if(!sid)return;
+  // 3つのセルの値を結合してshiftDataに保存
+  // date-lunch, date-idle, date-dinnerから値を取得
+  // シンプルにセルの値をそのまま保存
+}
+function onCC(el){
+  const sid=el.dataset.sid,date=el.dataset.date;
+  if(!shiftData[sid])shiftData[sid]={};
+  shiftData[sid][date]=el.value.trim();
+  updateRow(sid);updateCostFull();
+}
+function updateRow(sid){
+  const s=staff.find(x=>x.id===sid);if(!s)return;
+  const dates=getWkDates();
+  let wkH=dates.reduce((a,d)=>a+parseH(shiftData[sid]?.[fmtD(d)]||''),0);
+  const wage=bw(s)||950,isL=getSkillKeys(s).includes('leader');
+  const hr=wage+(isL?+cv('w-lead')||50:0);
+  const cost=s.type==='seiki'?Math.round((+cv('w-sei')||210000)/4):Math.round(wkH*hr);
+  const eh=document.getElementById(`wh-${sid}`),ec=document.getElementById(`wc-${sid}`);
+  if(eh)eh.textContent=wkH+'h';if(ec)ec.textContent='¥'+cost.toLocaleString();
+}
+function updateCostFull(){
+  const dates=getWkDates();let tc=0,th=0,tp=0;
+  filterSt().forEach(s=>{
+    let wkH=dates.reduce((a,d)=>a+parseH(shiftData[s.id]?.[fmtD(d)]||''),0);
+    const wage=bw(s)||950,isL=getSkillKeys(s).includes('leader');
+    const hr=wage+(isL?+cv('w-lead')||50:0);
+    const cost=s.type==='seiki'?Math.round((+cv('w-sei')||210000)/4):Math.round(wkH*hr);
+    tc+=cost;th+=wkH;if(wkH>0)tp++;
+  });
+  updateCostBar(tc,th,tp);
+}
+function updateCostBar(c,h,p){
+  document.getElementById('cv-week').textContent='¥'+c.toLocaleString();
+  document.getElementById('cv-month').textContent='¥'+(c*4).toLocaleString();
+  document.getElementById('cv-hours').textContent=h+'h';
+  document.getElementById('cv-count').textContent=p+'名';
+}
+
+// AI AUTO GEN
+function genShift(){
+  if(!staff.length){alert('スタッフを追加してください');return;}
+
+  const isAll=curSec==='all';
+  // v2：社員はAI生成対象外（手動入力）
+  const targetStaff=isAll?staff.filter(s=>s.type!=='seiki'):filterSt().filter(s=>s.type!=='seiki');
+  const secLabel={
+    'all':'全体',
+    'kitchen-day':'昼キッチン','kitchen-idle':'アイドルキッチン','kitchen-night':'夜キッチン',
+    'hall-day':'昼ホール','hall-idle':'アイドルホール','hall-night':'夜ホール'
+  }[curSec]||curSec;
+
+  if(!isAll&&!confirm(`「${secLabel}」のシフトだけ生成します。\n他のセクションのシフトはそのまま残ります。\nよろしいですか？`))return;
+
+  const dates=getWkDates();
+
+  // 週の労働時間を初期化
+  const wkH={};
+  staff.forEach(s=>{
+    wkH[s.id]=dates.reduce((a,d)=>a+parseH(shiftData[s.id]?.[fmtD(d)]||''),0);
+  });
+
+  // ターゲットスタッフのシフトをクリア
+  targetStaff.forEach(s=>{
+    if(!shiftData[s.id])shiftData[s.id]={};
+    dates.forEach(d=>{ shiftData[s.id][fmtD(d)]=''; });
+  });
+
+  // 配置カウント
+  const dayCount={};
+  dates.forEach(d=>{
+    dayCount[fmtD(d)]={};
+    [...KIT,{key:'hall'},{key:'leader'}].forEach(p=>{
+      dayCount[fmtD(d)][p.key]={lunch:0,idle:0,dinner:0};
+    });
+    dayCount[fmtD(d)]['morning']={lunch:0,idle:0,dinner:0};
+    dayCount[fmtD(d)]['morning_hall']={lunch:0,idle:0,dinner:0};
+  });
+
+  // 必要人数取得
+  function getRequired(posKey,band,dayIdx){
+    const def=KIT_DEF[posKey]||FLO_DEF[posKey];
+    if(!def||!def[band])return 0;
+    return def[band][dayIdx]||0;
+  }
+
+  // セクションで使える時間帯
+  const allowedBands=new Set(['lunch','idle','dinner']);
+  if(curSec==='kitchen-day'||curSec==='hall-day'){allowedBands.clear();allowedBands.add('lunch');}
+  else if(curSec==='kitchen-idle'||curSec==='hall-idle'){allowedBands.clear();allowedBands.add('idle');}
+  else if(curSec==='kitchen-night'||curSec==='hall-night'){allowedBands.clear();allowedBands.add('dinner');}
+
+  // コードマップ
+  const codeMap={fryer:'F',conro:'C',dishup:'D',dishwash:'W',sobaneri:'S'};
+
+  // スタッフ優先順（社員は最後、同じ区分内はランダム）
+  const sorted=[...targetStaff].sort((a,b)=>{
+    if(a.type==='seiki'&&b.type!=='seiki')return 1;
+    if(a.type!=='seiki'&&b.type==='seiki')return -1;
+    return Math.random()-0.5;// 同じ区分内はランダム
+  });
+
+  // スタッフをポジションに配置する関数
+  // prefを無視して強制配置するかどうかのフラグ付き
+  function tryAssign(s, d, band, posKey){
+    const dayIdx=getDayIdx(d);
+    const dateStr=fmtD(d);
+    const mh=mxH(s);
+    const av=s.avail||[0,1,2,3,4,5,6];
+    const pref=s.pref||'any';
+    const sk=getSkillKeys(s);
+    const kitSk=sk.filter(k=>KIT_KEYS.includes(k)&&k!=='morning');
+    const floSk=sk.filter(k=>['cashier','hall'].includes(k));
+    const isHall=!kitSk.length&&floSk.length;
+
+    // ── 絶対条件チェック ──
+    if(!av.includes(dayIdx))return false;
+    if(shiftData[s.id][dateStr]!=='')return false;
+    // 最大出勤日数チェック（今週の出勤日数のみカウント）
+    const mhVal=mxH(s);
+    const avgShiftH=s.pref==='night'?5.5:s.pref==='day'?4:5;
+    const autoMaxDays=s.max_days||(Math.min(7,Math.floor(mhVal/avgShiftH)));
+    const workedThisWeek=dates.filter(d=>shiftData[s.id]?.[fmtD(d)]&&shiftData[s.id][fmtD(d)]!=='').length;
+    if(workedThisWeek>=autoMaxDays)return false;
+    const onVac=(s.vacations||[]).some(v=>dateStr>=v.from&&dateStr<=(v.to||v.from));
+    if(onVac)return false;
+
+    // ── 希望シフト帯（絶対条件）──
+    const canAlsoDay=(s.day_also||[]).includes(dayIdx);
+    const effPref=(canAlsoDay&&pref==='night')?'any':pref;
+    if(band==='lunch'&&!prefIncludes(effPref,'day'))return false;
+    if(band==='idle'&&!prefIncludes(effPref,'idle'))return false;
+    if(band==='dinner'&&!prefIncludes(effPref,'night'))return false;
+
+    // ── ポジションスキルチェック ──
+    const effectivePosKey=posKey==='cashier'?'hall':posKey;
+    if(effectivePosKey==='morning'){
+      if(!sk.includes('morning'))return false;
+    } else if(effectivePosKey==='morning_hall'){
+      if(!sk.includes('morning_hall')&&s.type!=='seiki')return false;
+    } else if(KIT_KEYS.includes(effectivePosKey)){
+      if(!sk.includes(effectivePosKey))return false;
+    } else if(['hall','leader'].includes(effectivePosKey)){
+      if(!sk.includes('cashier')&&!sk.includes('hall'))return false;
+    } else {
+      return false;
+    }
+
+    // ── 必要人数チェック ──
+    // v2：社員はAI生成対象外
+    if(s.type==='seiki')return false;
+    const curCount=dayCount[dateStr][effectivePosKey]?.[band]||0;
+    const reqCount=getRequired(effectivePosKey,band,dayIdx);
+    if(reqCount>0&&curCount>=reqCount)return false;
+
+    // ── 時間計算 ──
+    const lastH2=parseLastH();
+    const isSei2=s.type==='seiki';
+    let start='',h=0;
+    if(isSei2){
+      start=isHall?'9-L':`${codeMap[posKey]||''}9-L`;
+      h=lastH2-9;
+    } else if(effectivePosKey==='morning'&&band==='lunch'){
+      start='9-12';h=3;
+    } else if(effectivePosKey==='morning_hall'&&band==='lunch'){
+      start='9-12';h=3;// ホール朝準備も9-12
+    } else if(band==='lunch'){
+      // 朝準備が足りていれば11時入り、足りなければ9時入り
+      const morningFull=(dayCount[dateStr]['morning']?.lunch||0)>=(getRequired('morning','lunch',dayIdx)||0)&&getRequired('morning','lunch',dayIdx)>0;
+      start=isHall?'9-14':`${codeMap[posKey]||''}${morningFull?'11':'9'}-15`;
+      h=isHall?5:(morningFull?4:6);
+    }    else if(band==='idle'){start=isHall?'15-18':`${codeMap[posKey]||''}15-18`;h=3;}
+    else if(band==='dinner'){start=isHall?'18-L':`${codeMap[posKey]||''}17-L`;h=5.5;}
+
+    if(wkH[s.id]+h>mh)return false;
+
+    shiftData[s.id][dateStr]=start;
+    wkH[s.id]+=h;
+    if(!dayCount[dateStr][effectivePosKey])dayCount[dateStr][effectivePosKey]={lunch:0,idle:0,dinner:0};
+    dayCount[dateStr][effectivePosKey][band]=(dayCount[dateStr][effectivePosKey][band]||0)+1;
+    return true;
+  }
+
+  // ── ラウンドロビン方式：ポジション×時間帯×日付で必要人数を埋める ──
+  // セクション別にポジションを決定
+  const kitPos=[...KIT.map(p=>p.key),'morning','other_kit'];
+  const floPos=[...FLO.filter(p=>p.key!=='cashier').map(p=>p.key),'morning_hall','other_flo'];
+  const allPos=curSec.startsWith('kitchen')?kitPos
+    :curSec.startsWith('hall')?floPos
+    :[...kitPos,...floPos];
+  const bands=['lunch','idle','dinner'];
+
+  dates.forEach(d=>{
+    const dayIdx=getDayIdx(d);
+    const dateStr=fmtD(d);
+    allPos.forEach(posKey=>{
+      bands.forEach(band=>{
+        if(!allowedBands.has(band))return;
+        const required=getRequired(posKey==='cashier'?'hall':posKey,band,dayIdx);
+        if(required<=0)return;
+        for(const s of shuffle(sorted)){
+          const cur=dayCount[dateStr][posKey==='cashier'?'hall':posKey]?.[band]||0;
+          if(cur>=required)break;
+          tryAssign(s,d,band,posKey);
+        }
+      });
+    });
+  });
+
+  // v2：社員は手動入力のためAI生成しない
+
+  // 社保付きスタッフ：min_daysを最低保証（必要人数の空きがある日のみ）
+  sorted.filter(s=>s.type==='shahou'&&s.min_days>0).forEach(s=>{
+    const workedDays=dates.filter(d=>shiftData[s.id]?.[fmtD(d)]&&shiftData[s.id][fmtD(d)]!=='').length;
+    if(workedDays>=s.min_days)return;
+    const needed=s.min_days-workedDays;
+    const sk=getSkillKeys(s);
+    const kitSk=sk.filter(k=>KIT_KEYS.includes(k)&&k!=='morning');
+    const floSk=sk.filter(k=>['cashier','hall'].includes(k));
+    const isHall=!kitSk.length&&floSk.length;
+    const mainPos=kitSk.find(k=>{const lv=getSkillLevel(s,k);return lv==='normal'||lv==='hojyo';})||kitSk[0]||floSk[0];
+    const mc=mainPos?codeMap[mainPos]||'':'';
+    const effPos=mainPos||'hall';
+    const band=allowedBands.has('lunch')?'lunch':allowedBands.has('dinner')?'dinner':'idle';
+    const h=band==='lunch'?(isHall?5:4):band==='dinner'?5.5:3;
+    const start=isHall
+      ?(band==='lunch'?'9-14':band==='dinner'?'18-L':'15-18')
+      :(band==='lunch'?`${mc}11-15`:band==='dinner'?`${mc}17-L`:`${mc}15-18`);
+    let filled=0;
+    for(const d of shuffle(dates)){
+      if(filled>=needed)break;
+      const dateStr=fmtD(d);
+      if(shiftData[s.id][dateStr]!=='')continue;
+      const dayIdx=getDayIdx(d);
+      if(!(s.avail||[0,1,2,3,4,5,6]).includes(dayIdx))continue;
+      const onVac=(s.vacations||[]).some(v=>dateStr>=v.from&&dateStr<=(v.to||v.from));
+      if(onVac)continue;
+      const mh=mxH(s);
+      if(wkH[s.id]+h>mh)continue;
+      // 必要人数の空きチェック
+      const curCnt=dayCount[dateStr][effPos]?.[band]||0;
+      const reqCnt=getRequired(effPos,band,dayIdx);
+      if(reqCnt>0&&curCnt>=reqCnt)continue;
+      shiftData[s.id][dateStr]=start;
+      wkH[s.id]+=h;
+      if(!dayCount[dateStr][effPos])dayCount[dateStr][effPos]={lunch:0,idle:0,dinner:0};
+      dayCount[dateStr][effPos][band]=(dayCount[dateStr][effPos][band]||0)+1;
+      filled++;
+    }
+  });
+
+  // 人員不足チェック — セクションに応じた対象ポジションのみ
+  const checkPos=[];
+  if(curSec==='all'||curSec.startsWith('kitchen')){
+    KIT.forEach(p=>{ if(p.key!=='morning')checkPos.push(p.key); });
+    checkPos.push('morning');
+  }
+  if(curSec==='all'||curSec.startsWith('hall')){
+    FLO.forEach(p=>checkPos.push(p.key));
+    checkPos.push('morning_hall');
+  }
+
+  // ── ポジション振り替え（不足ポジションに社員を優先して振り替え）──
+  dates.forEach(d=>{
+    const dayIdx=getDayIdx(d);
+    const dateStr=fmtD(d);
+    checkPos.forEach(neededPos=>{
+      bands.forEach(band=>{
+        if(!allowedBands.has(band))return;
+        const required=getRequired(neededPos,band,dayIdx);
+        if(required<=0)return;
+        if((dayCount[dateStr][neededPos]?.[band]||0)>=required)return;
+        // まず社員から振り替え
+        for(const s of [...sorted].sort((a,b)=>a.type==='seiki'?-1:b.type==='seiki'?1:0)){
+          if((dayCount[dateStr][neededPos]?.[band]||0)>=required)break;
+          // v2：社員は振り替えしない（手動入力）
+          if(s.type==='seiki')continue;
+          const dateShift=shiftData[s.id]?.[dateStr];
+          if(!dateShift||!dateShift.trim())continue;
+          const sk=getSkillKeys(s);
+          if(neededPos==='morning'&&s.type!=='seiki'&&!sk.includes('morning'))continue;
+          if(neededPos==='morning_hall'&&s.type!=='seiki'&&!sk.includes('morning_hall'))continue;
+          if(KIT_KEYS.includes(neededPos)&&neededPos!=='morning'&&!sk.includes(neededPos))continue;
+          if(['hall','leader'].includes(neededPos)&&!sk.includes('cashier')&&!sk.includes('hall'))continue;
+          // 社員以外は現在のポジションが余っている場合のみ
+          if(s.type!=='seiki'){
+            const curCode=dateShift.trim().match(/^(練|補)?([FCDWS])?/)?.[2]||'';
+            const curPosMap={F:'fryer',C:'conro',D:'dishup',W:'dishwash',S:'sobaneri'};
+            const curPos=curPosMap[curCode]||'hall';
+            if(curPos===neededPos)continue;
+            const curRequired=getRequired(curPos,band,dayIdx);
+            const curActual=dayCount[dateStr][curPos]?.[band]||0;
+            if(curRequired>0&&curActual<=curRequired)continue;
+          }
+          const newCode=codeMap[neededPos]||'';
+          const isHallNew=['cashier','hall','leader'].includes(neededPos);
+          const isMorning=neededPos==='morning'||neededPos==='morning_hall';
+          if(isMorning){
+            shiftData[s.id][dateStr]='9-12';
+            wkH[s.id]+=3;
+          } else {
+            const timeMatch=dateShift.match(/(\d+(?:\.\d+)?-(?:L|\d+(?:\.\d+)?))/);
+            if(!timeMatch)continue;
+            const timeStr=timeMatch[1];
+            shiftData[s.id][dateStr]=isHallNew?timeStr:`${newCode}${timeStr}`;
+          }
+          if(!dayCount[dateStr][neededPos])dayCount[dateStr][neededPos]={lunch:0,idle:0,dinner:0};
+          dayCount[dateStr][neededPos][band]=(dayCount[dateStr][neededPos][band]||0)+1;
+        }
+      });
+    });
+  });
+
+  renderGrid();
+
+  const shortages=[];
+  const seenKeys=new Set();// 重複除去
+  dates.forEach(d=>{
+    const dayIdx=getDayIdx(d);
+    const dateStr=fmtD(d);
+    checkPos.forEach(posKey=>{
+      bands.forEach(band=>{
+        if(!allowedBands.has(band))return;
+        const required=getRequired(posKey,band,dayIdx);
+        if(required<=0)return;
+        const actual=dayCount[dateStr][posKey]?.[band]||0;
+        if(actual<required){
+          const key=`${dateStr}-${posKey}-${band}`;
+          if(seenKeys.has(key))return;
+          seenKeys.add(key);
+          const posLbl=[...KIT,...FLO].find(p=>p.key===posKey)?.lbl.split(' ').pop()||posKey;
+          const bandLbl={lunch:'昼',idle:'アイドル',dinner:'夕'}[band];
+          const dayLbl=`${d.getMonth()+1}/${d.getDate()}(${DN[dayIdx]})`;
+          shortages.push({dateStr,posKey,band,required,actual,
+            label:`${dayLbl} ${posLbl} ${bandLbl}: ${actual}/${required}人`});
+        }
+      });
+    });
+  });
+
+  const hint=document.getElementById('s-hint');
+  if(shortages.length>0){
+    hint.className='hint warn';
+    hint.style.display='flex';
+    hint.style.flexDirection='column';
+    hint.style.gap='4px';
+    hint.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:4px">⚠️ 人員不足 ${shortages.length}件</div>`+
+      shortages.map(s=>`<div style="font-size:11px">● ${s.label}</div>`).join('');
+    // 不足しているセルの列を赤くハイライト
+    shortages.forEach(({dateStr})=>{
+      document.querySelectorAll(`input[data-date="${dateStr}"]`).forEach(el=>{
+        const td=el.closest('td');
+        if(td&&(!el.value||el.value.trim()===''))td.style.background='#FFF0F0';
+      });
+    });
+  } else {
+    hint.className='hint ok';
+    hint.style.display='flex';
+    hint.style.flexDirection='';
+    hint.innerHTML='✅ 全ポジション必要人数を充足しました';
+    setTimeout(()=>{hint.style.display='none';},3000);
+  }
+
+  toast(`${secLabel}のシフトを生成しました。`);
+}
+
+async function saveShift(){
+  try{await saveShiftDB();toast('シフトを保存しました');prevLine();}
+  catch(e){alert('保存失敗: '+e.message);}
+}
+
+function setSec(sec){
+  curSec=sec;
+  document.querySelectorAll('.sec-tab').forEach(b=>{
+    b.classList.toggle('on',b.getAttribute('onclick')&&b.getAttribute('onclick').includes(`'${sec}'`));
+  });
+  // AI生成ボタンのラベル更新
+  const genBtn=document.getElementById('gen-btn');
+  if(genBtn){
+    const label={
+      'all':'AI生成（全体）',
+      'kitchen-day':'AI生成（昼KIT）','kitchen-idle':'AI生成（アイドルKIT）','kitchen-night':'AI生成（夜KIT）',
+      'hall-day':'AI生成（昼ホール）','hall-idle':'AI生成（アイドルホール）','hall-night':'AI生成（夜ホール）'
+    }[sec]||'AI生成';
+    genBtn.innerHTML=`<i class="ti ti-bolt"></i>${label}`;
+  }
+  renderGrid();
+}
+
+// PAYROLL
+function initPayMo(){
+  const sel=document.getElementById('pay-mo');sel.innerHTML='';
+  const now=new Date();
+  for(let i=0;i<6;i++){const d=new Date(now.getFullYear(),now.getMonth()-i,1);const o=document.createElement('option');o.value=`${d.getFullYear()}-${d.getMonth()+1}`;o.textContent=`${d.getFullYear()}年${d.getMonth()+1}月`;sel.appendChild(o);}
+}
+function calcPay(){
+  const dates=getWkDates();
+  const rows=staff.map(s=>{
+    const wkH=dates.reduce((a,d)=>a+parseH(shiftData[s.id]?.[fmtD(d)]||''),0);
+    const mH=wkH*4,wage=bw(s)||950,isL=getSkillKeys(s).includes('leader');
+    const hr=wage+(isL?+cv('w-lead')||50:0);
+    const basic=s.type==='seiki'?+cv('w-sei')||210000:Math.round(mH*hr);
+    const late=Math.round(mH*.1*(+cv('w-late')||25)/100*hr);
+    const we=Math.round(mH*.3*(+cv('w-we')||0)/100*hr);
+    const total=basic+late+we;
+    const days=dates.filter(d=>shiftData[s.id]?.[fmtD(d)]).length;
+    return{s,hr,days,mH,basic,late,we,total};
+  });
+  const tp=rows.reduce((a,r)=>a+r.total,0),th=rows.reduce((a,r)=>a+r.mH,0);
+  document.getElementById('pay-sum').innerHTML=`
+    <div class="pc2"><div class="pl">月次人件費</div><div class="pv">¥${tp.toLocaleString()}</div></div>
+    <div class="pc2"><div class="pl">月次総労働時間</div><div class="pv">${th}h</div></div>
+    <div class="pc2"><div class="pl">スタッフ数</div><div class="pv">${rows.length}名</div></div>`;
+  const mx=Math.max(1,...rows.map(r=>r.total));
+  document.getElementById('pay-body').innerHTML=rows.map(r=>`<tr>
+    <td><div style="font-weight:700">${r.s.name}</div><div class="pay-bar-wrap"><div class="pay-bar" style="width:${Math.round(r.total/mx*100)}%"></div></div></td>
+    <td>${tbadge(r.s.type)}</td><td>${r.days}日</td><td>${r.mH}h</td>
+    <td style="font-size:11px">${r.s.type==='seiki'?'月給':'¥'+r.hr.toLocaleString()+'/h'}</td>
+    <td>¥${r.basic.toLocaleString()}</td>
+    <td style="color:var(--text3);font-size:11px">${r.late>0?'深¥'+r.late.toLocaleString():''}${r.we>0?' 週末¥'+r.we.toLocaleString():''}</td>
+    <td style="font-weight:700">¥${r.total.toLocaleString()}</td>
+  </tr>`).join('');
+}
+
+// CSV
+function expCSV(){
+  const dates=getWkDates();
+  const rows=[['スタッフ','区分',...dates.map(d=>`${DN[(d.getDay()+6)%7]} ${d.getMonth()+1}/${d.getDate()}`),'週計h']];
+  staff.forEach(s=>{const cells=dates.map(d=>shiftData[s.id]?.[fmtD(d)]||'');rows.push([s.name,tl(s.type),...cells,cells.reduce((a,v)=>a+parseH(v),0)]);});
+  dlCSV(rows,'shift_nishijin.csv');
+}
+function expPayCSV(){calcPay();const rows=[['スタッフ','区分','日数','月間h']];staff.forEach(s=>{const dates=getWkDates();const wkH=dates.reduce((a,d)=>a+parseH(shiftData[s.id]?.[fmtD(d)]||''),0);rows.push([s.name,tl(s.type),dates.filter(d=>shiftData[s.id]?.[fmtD(d)]).length,wkH*4]);});dlCSV(rows,'payroll.csv');}
+function dlCSV(rows,fn){const bom='\uFEFF';const csv=bom+rows.map(r=>r.join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=fn;a.click();}
+
+// LINE
+function connLine(){const t=document.getElementById('l-tok').value.trim();if(!t){alert('トークンを入力');return;}lineConn=true;const b=document.getElementById('l-badge');b.className='line-st conn';b.innerHTML='<i class="ti ti-circle-check"></i> 接続中';toast('LINE Notifyに接続しました');}
+function sendLine(){if(!lineConn){alert('LINE通知ページでトークンを接続してください');return;}prevLine();toast('LINEへ送信しました！');}
+function prevLine(){
+  if(!staff.length)return;
+  const dates=getWkDates(),d=dates[0];
+  const lines=staff.slice(0,8).map(s=>{
+    const days=dates.map((dt,i)=>{const v=shiftData[s.id]?.[fmtD(dt)]||'';return v?`${DN[i]}${v}`:null;}).filter(Boolean).join(' ');
+    return`  ${s.name}：${days||'休み'}`;
+  });
+  document.getElementById('l-prev').textContent=`【生そばウエスト 西新店】シフト確定\n${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（月）〜\n\n${lines.join('\n')}${staff.length>8?`\n  ...他${staff.length-8}名`:''}\n\n変更・欠勤は前日までに店長へ連絡ください。\n📍 西新店 TEL: 092-836-7440`;
+}
+
+// NAV
+function go(name){
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.rail-btn,[data-pg]').forEach(b=>b.classList.remove('active'));
+  document.getElementById('pg-'+name).classList.add('on');
+  document.querySelectorAll(`[data-pg="${name}"]`).forEach(b=>b.classList.add('active'));
+  const T={staff:'スタッフ管理',cond:'勤務条件設定',shift:'シフト表',pay:'給与・月次集計',line:'LINE通知設定',mypage:'マイページ'};
+  if(name==='mypage')loadMyPage();
+  document.getElementById('tbtitle').textContent=T[name]||name;
+  document.getElementById('tbacts').innerHTML=name==='staff'&&role==='manager'?'<button class="btn p" onclick="openAdd()"><i class="ti ti-plus"></i>追加</button>':'';
+  if(name==='shift'){renderWkLbl();loadShift();}
+  if(name==='pay')initPayMo();
+}
+function ctab(n){
+  const ns=['labor','pos','wage'];
+  document.querySelectorAll('.ctab').forEach((b,i)=>b.classList.toggle('on',ns[i]===n));
+  document.querySelectorAll('.cpanel').forEach(p=>p.classList.remove('on'));
+  document.getElementById('cp-'+n).classList.add('on');
+}
+
+// POS TABLES — 曜日ごと設定
+function initPosTbls(){
+  const BANDS=[{key:'lunch',lbl:'昼'},{key:'idle',lbl:'アイドル'},{key:'dinner',lbl:'夕'}];
+  const DAYS=['月','火','水','木','金','土','日'];
+  function rows(arr,defs,id,extraRows=[]){
+    const allPos=[...arr,...extraRows];
+    let html='';
+    allPos.forEach((p,pi)=>{
+      const d=defs[p.key]||{lunch:[0,0,0,0,0,0,0],idle:[0,0,0,0,0,0,0],dinner:[0,0,0,0,0,0,0]};
+      const isExtra=pi>=arr.length;
+      BANDS.forEach((band,bi)=>{
+        const arr2=d[band.key]||[0,0,0,0,0,0,0];
+        html+=`<tr>`;
+        if(bi===0){
+          html+=`<td rowspan="3" style="font-weight:${isExtra?'400':'600'};color:${isExtra?'var(--text3)':'var(--text2)'};border-right:2px solid var(--border2)">${p.lbl.split(' ').slice(1).join(' ')||p.lbl}</td>`;
+        }
+        html+=`<td style="font-size:10px;color:var(--text3);white-space:nowrap;border-right:1px solid var(--border)">${band.lbl}</td>`;
+        DAYS.forEach((day,di)=>{
+          const isWe=di>=5;
+          html+=`<td style="${isWe?'background:var(--w-green-lt)':''}">
+            <input type="number" min="0" max="20" value="${arr2[di]||0}"
+              style="width:36px;padding:2px;font-size:11px;border:1px solid var(--border2);border-radius:4px;text-align:center;background:var(--surface)"
+              onchange="updPosDay('${p.key}','${band.key}',${di},this.value)">
+          </td>`;
+        });
+        html+=`</tr>`;
+      });
+      // 区切り線
+      html+=`<tr><td colspan="9" style="padding:0;height:3px;background:var(--border)"></td></tr>`;
+    });
+    document.getElementById(id).innerHTML=html;
+  }
+  rows(KIT,KIT_DEF,'kt-body',[{key:'other_kit',lbl:'その他'}]);
+  rows(FLO,FLO_DEF,'fl-body',[{key:'morning_hall',lbl:'朝準備（ホール）'},{key:'other_flo',lbl:'その他'}]);
+}
+function updPosDay(pos,band,dayIdx,val){
+  if(KIT_DEF[pos]){if(!KIT_DEF[pos][band])KIT_DEF[pos][band]=[0,0,0,0,0,0,0];KIT_DEF[pos][band][dayIdx]=+val;}
+  if(FLO_DEF[pos]){if(!FLO_DEF[pos][band])FLO_DEF[pos][band]=[0,0,0,0,0,0,0];FLO_DEF[pos][band][dayIdx]=+val;}
+}
+
+// MODAL
+function initModalLists(){
+  function makeRows(arr, containerId){
+    document.getElementById(containerId).innerHTML=arr.map(p=>`
+      <div>
+        <button type="button" class="pos-tog" id="pt-${p.key}" onclick="togglePosTog('${p.key}',this)">
+          ${p.lbl.split(' ').slice(1).join(' ')||p.lbl}
+        </button>
+        ${p.subOpt!==false?`
+        <div class="pos-sub" id="psc-${p.key}">
+          <label class="sub-ck hojyo" onclick="toggleSubCk(this)"><input type="checkbox" id="ph-${p.key}"><span class="ck-mark"></span>補（補助できる）</label>
+          <label class="sub-ck renshu" onclick="toggleSubCk(this)"><input type="checkbox" id="pr2-${p.key}"><span class="ck-mark"></span>練（練習中）</label>
+        </div>`:''}
+      </div>`).join('');
+  }
+  makeRows(KIT,'kit-sk');
+  makeRows(FLO,'flo-sk');
+  const abilEl=document.getElementById('abil-sk');
+  if(abilEl&&abilEl.closest('.mf'))abilEl.closest('.mf').style.display='none';
+}
+function togglePosTog(key, btn){
+  const isOn=btn.classList.toggle('on');
+  const sub=document.getElementById('psc-'+key);
+  if(sub)sub.classList.toggle('show',isOn);
+  if(!isOn){
+    const h=document.getElementById('ph-'+key);
+    const r=document.getElementById('pr2-'+key);
+    if(h){h.checked=false;h.closest('.sub-ck')?.classList.remove('active');}
+    if(r){r.checked=false;r.closest('.sub-ck')?.classList.remove('active');}
+  }
+}
+function toggleSubCk(label){
+  // labelクリックでcheckboxをトグル＋activeクラス切り替え
+  const cb=label.querySelector('input[type=checkbox]');
+  if(!cb)return;
+  // デフォルトのlabelクリック動作に任せる（checkboxはdisplay:noneなので手動で）
+  cb.checked=!cb.checked;
+  label.classList.toggle('active',cb.checked);
+}
+function getSelectedSkills(){
+  const result=[];
+  [...KIT,...FLO].forEach(p=>{
+    const btn=document.getElementById('pt-'+p.key);
+    if(!btn||!btn.classList.contains('on'))return;
+    const hojyo=document.getElementById('ph-'+p.key)?.checked||false;
+    const renshu=document.getElementById('pr2-'+p.key)?.checked||false;
+    result.push({key:p.key, level:'normal', hojyo, renshu});
+  });
+  return result;
+}
+// 希望シフト帯
+function setPref(p){
+  document.querySelectorAll('[data-pref]').forEach(b=>b.classList.toggle('on',b.dataset.pref===p));
+  // 夜のみの時だけ「昼も入れる曜日」を表示
+  const wrap=document.getElementById('day-also-wrap');
+  if(wrap)wrap.style.display=p==='night'?'block':'none';
+}
+
+// 休暇希望
+function addVacationRow(from='',to=''){
+  const list=document.getElementById('vacation-list');
+  const div=document.createElement('div');
+  div.style.cssText='display:flex;align-items:center;gap:6px;';
+  div.innerHTML=`
+    <input type="date" class="vac-from" value="${from}" style="flex:1;padding:8px;border:1.5px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--surface);color:var(--text);font-family:inherit">
+    <span style="color:var(--text3);font-size:12px;white-space:nowrap">〜</span>
+    <input type="date" class="vac-to" value="${to}" style="flex:1;padding:8px;border:1.5px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--surface);color:var(--text);font-family:inherit">
+    <button type="button" onclick="this.parentNode.remove()" style="padding:7px 9px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);cursor:pointer;color:var(--text3);font-size:12px"><i class="ti ti-x"></i></button>`;
+  list.appendChild(div);
+}
+function getVacations(){
+  return [...document.querySelectorAll('#vacation-list > div')].map(row=>{
+    const from=row.querySelector('.vac-from').value;
+    const to=row.querySelector('.vac-to').value||from;
+    return from?{from,to}:null;
+  }).filter(Boolean);
+}
+function restoreVacations(vacations){
+  const list=document.getElementById('vacation-list');
+  list.innerHTML='';
+  (vacations||[]).forEach(v=>addVacationRow(v.from,v.to||v.from));
+}
+function getDayAlso(){
+  return [...document.querySelectorAll('#mod-day-also .db.on')].map(b=>+b.dataset.d);
+}
+function restoreDayAlso(days){
+  document.querySelectorAll('#mod-day-also .db').forEach(b=>{
+    b.classList.toggle('on',(days||[]).includes(+b.dataset.d));
+  });
+}
+function toggleHallMorning(){
+  const cb=document.getElementById('skill-hall-morning');
+  if(!cb)return;
+  cb.checked=!cb.checked;
+  onHallMorningChange(cb);
+}
+function toggleSobaSkill(){
+  const cb=document.getElementById('skill-sobaneri');
+  if(!cb)return;
+  cb.checked=!cb.checked;
+  onSobaSkillChange(cb);
+}
+function onHallMorningChange(cb){
+  const label=document.getElementById('hall-morning-label');
+  const box=document.getElementById('hall-morning-ck-box');
+  const on=cb.checked;
+  if(label){
+    label.style.borderColor=on?'#BA7517':'var(--border2)';
+    label.style.background=on?'#FFF8E8':'var(--surface2)';
+    label.style.color=on?'#7C5000':'var(--text3)';
+  }
+  if(box){
+    box.style.borderColor=on?'#BA7517':'var(--text3)';
+    box.style.background=on?'#BA7517':'transparent';
+    box.style.color='#fff';
+    box.textContent=on?'✓':'';
+  }
+}
+function onSobaSkillChange(cb){
+  const label=document.getElementById('soba-skill-label');
+  const box=document.getElementById('soba-ck-box');
+  const on=cb.checked;
+  if(label){
+    label.style.borderColor=on?'var(--w-green)':'var(--border2)';
+    label.style.background=on?'var(--w-green-lt)':'var(--surface2)';
+    label.style.color=on?'var(--w-green-dk)':'var(--text3)';
+  }
+  if(box){
+    box.style.borderColor=on?'var(--w-green)':'var(--text3)';
+    box.style.background=on?'var(--w-green)':'transparent';
+    box.style.color='#fff';
+    box.textContent=on?'✓':'';
+  }
+}
+function toggleIdleOpt(){
+  const cb=document.getElementById('pref-idle-opt');
+  if(!cb)return;
+  cb.checked=!cb.checked;
+  onIdleOptChange(cb);
+}
+function onIdleOptChange(cb){
+  const label=document.getElementById('idle-opt-label');
+  const box=document.getElementById('idle-ck-box');
+  const on=cb.checked;
+  if(label){
+    label.style.borderColor=on?'var(--w-green)':'var(--border2)';
+    label.style.background=on?'var(--w-green-lt)':'var(--surface2)';
+    label.style.color=on?'var(--w-green-dk)':'var(--text3)';
+  }
+  if(box){
+    box.style.borderColor=on?'var(--w-green)':'var(--text3)';
+    box.style.background=on?'var(--w-green)':'transparent';
+    box.style.color='#fff';
+    box.textContent=on?'✓':'';
+  }
+}
+function getSelPref(){
+  const base=document.querySelector('[data-pref].on')?.dataset.pref||'any';
+  const idle=document.getElementById('pref-idle-opt')?.checked||false;
+  if(!idle)return base;
+  if(base==='any')return'idle';// どちらでも+アイドル=アイドルのみ
+  if(base==='day')return'day_idle';
+  if(base==='night')return'idle_night';
+  return base;
+}
+function restorePref(pref){
+  const p=pref||'any';
+  const baseMap={'any':'any','day':'day','night':'night','day_idle':'day','idle_night':'night','idle':'any'};
+  setPref(baseMap[p]||'any');
+  const idleOn=p==='day_idle'||p==='idle_night'||p==='idle';
+  const cb=document.getElementById('pref-idle-opt');
+  if(cb){cb.checked=idleOn;onIdleOptChange(cb);}
+}
+function setArea(a){
+  document.querySelectorAll('[data-area]').forEach(b=>b.classList.toggle('on',b.dataset.area===a));
+  document.getElementById('kit-section').style.display=a==='hall'?'none':'block';
+  document.getElementById('flo-section').style.display=a==='kitchen'?'none':'block';
+}
+// setPrefとgetSelPrefは上で定義済み（重複削除）
+
+function clearLevelBtns(){
+  [...KIT,...FLO].forEach(p=>{
+    const btn=document.getElementById('pt-'+p.key);
+    if(btn)btn.classList.remove('on');
+    const sub=document.getElementById('psc-'+p.key);
+    if(sub)sub.classList.remove('show');
+    const h=document.getElementById('ph-'+p.key);
+    const r=document.getElementById('pr2-'+p.key);
+    if(h)h.checked=false;
+    if(r)r.checked=false;
+  });
+}
+function restoreLevelBtns(skillsArr){
+  clearLevelBtns();
+  if(!skillsArr)return;
+  skillsArr.forEach(sk=>{
+    const key=typeof sk==='string'?sk:sk.key;
+    const hojyo=typeof sk==='object'&&sk.hojyo;
+    const renshu=typeof sk==='object'&&sk.renshu;
+    const btn=document.getElementById('pt-'+key);
+    if(!btn)return;
+    btn.classList.add('on');
+    const sub=document.getElementById('psc-'+key);
+    if(sub)sub.classList.add('show');
+    if(hojyo){
+      const h=document.getElementById('ph-'+key);
+      if(h){h.checked=true;h.closest('.sub-ck')?.classList.add('active');}
+    }
+    if(renshu){
+      const r=document.getElementById('pr2-'+key);
+      if(r){r.checked=true;r.closest('.sub-ck')?.classList.add('active');}
+    }
+  });
+}
+function colorField(el){
+  if(el.value&&el.value.trim()!==''){
+    el.classList.add('has-val');el.classList.remove('empty-val');
+  } else {
+    el.classList.remove('has-val');el.classList.add('empty-val');
+  }
+}
+function calcMaxH(el){
+  // 最大出勤日数から最大時間を自動計算（昼4h、夜5.5hの平均で約4.5h/日）
+  const days=+el.value;
+  if(!days)return;
+  const pref=document.querySelector('[data-pref].on')?.dataset.pref||'any';
+  const hPerDay=pref==='night'?5.5:pref==='day'?4:5;
+  const maxh=Math.round(days*hPerDay);
+  const maxhEl=document.getElementById('f-maxh');
+  if(maxhEl){maxhEl.value=maxh;colorField(maxhEl);}
+}
+function colorFields(){
+  ['f-password','f-wage','f-monthly','f-maxh','f-maxd'].forEach(id=>{
+    const el=document.getElementById(id);if(el)colorField(el);
+  });
+}
+function onTypeChange(type){
+  const isSei=type==='seiki';
+  document.getElementById('wage-field').style.display=isSei?'none':'block';
+  document.getElementById('monthly-field').style.display=isSei?'block':'none';
+}
+function openAdd(){
+  document.getElementById('mod-title').textContent='スタッフ追加';
+  document.getElementById('eid').value='';
+  document.getElementById('f-name').value='';
+  document.getElementById('f-type').value='general';
+  document.getElementById('f-wage').value='';
+  document.getElementById('f-monthly').value='';
+  document.getElementById('f-maxh').value='';
+  document.getElementById('f-maxd').value='';
+  document.getElementById('f-password').value='';
+  clearLevelBtns();
+  document.querySelectorAll('#mod-days .db').forEach(b=>b.classList.add('on'));
+  document.getElementById('del-btn').style.display='none';
+  onTypeChange('general');
+  setArea('both');
+  restorePref('any');
+  const daw=document.getElementById('day-also-wrap');
+  if(daw)daw.style.display='none';
+  restoreVacations([]);
+  restoreDayAlso([]);
+  // 蕎麦コネリセット
+  const sobaCb=document.getElementById('skill-sobaneri');
+  if(sobaCb){sobaCb.checked=false;onSobaSkillChange(sobaCb);}
+  const hallMCb=document.getElementById('skill-hall-morning');
+  if(hallMCb){hallMCb.checked=false;onHallMorningChange(hallMCb);}
+  colorFields();
+  document.getElementById('mod-staff').classList.add('open');}
+function editStaff(id){
+  const s=staff.find(x=>x.id===id);if(!s)return;
+  document.getElementById('mod-title').textContent='スタッフ編集';
+  document.getElementById('eid').value=id;
+  document.getElementById('f-name').value=s.name;
+  const t=s.type||'general';
+  document.getElementById('f-type').value=t;
+  document.getElementById('f-wage').value=t!=='seiki'?(s.wage||''):'';
+  document.getElementById('f-monthly').value=t==='seiki'?(s.wage||''):'';
+  document.getElementById('f-maxh').value=s.max_h||'';
+  document.getElementById('f-maxd').value=s.max_days||s.min_days||'';
+  document.getElementById('f-password').value=s.password||'';
+  onTypeChange(t);
+  restoreLevelBtns(s.skills);
+  const av=s.avail||[0,1,2,3,4,5,6];
+  document.querySelectorAll('#mod-days .db').forEach(b=>b.classList.toggle('on',av.includes(+b.dataset.d)));
+  const skKeys=getSkillKeys(s);
+  const hk=skKeys.some(k=>KIT_KEYS.includes(k));
+  const hf=skKeys.some(k=>['cashier','hall'].includes(k));
+  setArea(hk&&hf?'both':hk?'kitchen':'hall');
+  restorePref(s.pref||'any');
+  const daw2=document.getElementById('day-also-wrap');
+  if(daw2)daw2.style.display=(s.pref==='night')?'block':'none';
+  restoreVacations(s.vacations||[]);
+  restoreDayAlso(s.day_also||[]);
+  // 蕎麦コネスキル復元
+  const sobaCb=document.getElementById('skill-sobaneri');
+  const hasSoba=(s.abilities||[]).includes('sobaneri')||(s.skills||[]).some(sk=>(typeof sk==='string'?sk:sk.key)==='sobaneri');
+  if(sobaCb){sobaCb.checked=hasSoba;onSobaSkillChange(sobaCb);}
+  const hallMCb=document.getElementById('skill-hall-morning');
+  const hasHallM=(s.abilities||[]).includes('morning_hall');
+  if(hallMCb){hallMCb.checked=hasHallM;onHallMorningChange(hallMCb);}
+  colorFields();
+  document.getElementById('del-btn').style.display='inline-flex';
+  document.getElementById('mod-staff').classList.add('open');
+}
+async function delStaff(){
+  if(!confirm('削除しますか？'))return;
+  const id=document.getElementById('eid').value;
+  try{await delStaffDB(id);closeMod();toast('削除しました');}catch(e){alert('削除失敗: '+e.message);}
+}
+async function saveStaff(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){alert('名前を入力してください');return;}
+  const allSkills=getSelectedSkills();
+  if(!allSkills.length){alert('担当ポジションを最低1つ選択してください');return;}
+
+  // エリア選択に応じてスキルをフィルタ
+  const area=document.querySelector('[data-area].on')?.dataset.area||'both';
+  const skillsArr=allSkills.filter(sk=>{
+    const key=typeof sk==='string'?sk:sk.key;
+    const isKit=KIT_KEYS.includes(key)||key==='morning';
+    const isFlo=['cashier','hall','leader','morning_hall'].includes(key);
+    if(area==='kitchen')return isKit||key==='leader';
+    if(area==='hall')return isFlo;
+    return true;
+  });
+  if(!skillsArr.length){alert('担当ポジションを最低1つ選択してください');return;}
+
+  const type=document.getElementById('f-type').value;
+  const isSei=type==='seiki';
+  const wage=isSei?(+document.getElementById('f-monthly').value||null):(+document.getElementById('f-wage').value||null);
+  const max_h=+document.getElementById('f-maxh').value||null;
+  const max_days=+document.getElementById('f-maxd').value||null;
+  const min_days=max_days;// 最大出勤日数=最低出勤日数（社員・社保付きの場合）
+  const password=document.getElementById('f-password').value.trim()||null;
+  const avail=[...document.querySelectorAll('#mod-days .db.on')].map(b=>+b.dataset.d);
+  const pref=getSelPref();
+  const hasSoba=document.getElementById('skill-sobaneri')?.checked||false;
+  const hasHallM=document.getElementById('skill-hall-morning')?.checked||false;
+  const abilities=[...(hasSoba?['sobaneri']:[]),...(hasHallM?['morning_hall']:[])];
+  const vacations=getVacations();
+  const day_also=getDayAlso();
+  const obj={name,type,max_h,max_days,min_days,wage,password,skills:skillsArr,abilities,avail,pref,vacations,day_also};
+  const eid=document.getElementById('eid').value;
+  try{await saveStaffDB(obj,eid||null);closeMod();toast(eid?'更新しました':'追加しました');}catch(e){alert('保存失敗: '+e.message);}
+}
+function closeMod(){document.getElementById('mod-staff').classList.remove('open');}
+async function saveCond(){
+  // 条件設定をSupabaseに保存
+  const condData={
+    kitDef:KIT_DEF,
+    floDef:FLO_DEF,
+    labor:{
+      gen:cv('c-gen'),stu:cv('c-stu'),sha:cv('c-sha'),sei:cv('c-sei'),last:cv('c-last')
+    },
+    wage:{
+      gen:cv('w-gen'),stu:cv('w-stu'),sha:cv('w-sha'),sei:cv('w-sei'),
+      lead:cv('w-lead'),late:cv('w-late'),we:cv('w-we')
+    },
+    weDays:[...weDays],
+    idleStart:cv('idle-start'),
+    idleEnd:cv('idle-end'),
+  };
+  const {error}=await sb.from('settings').upsert({id:'cond',value:condData,updated_at:new Date().toISOString()});
+  if(error){alert('保存失敗: '+error.message);return;}
+  renderStaff();
+  toast('条件を保存しました');
+}
+async function loadCond(){
+  const {data}=await sb.from('settings').select('value').eq('id','cond').maybeSingle();
+  if(!data)return;
+  const c=data.value;
+  // KIT_DEF/FLO_DEF復元（deep copy）
+  if(c.kitDef){
+    Object.keys(c.kitDef).forEach(pos=>{
+      if(!KIT_DEF[pos])KIT_DEF[pos]={};
+      Object.keys(c.kitDef[pos]).forEach(band=>{
+        KIT_DEF[pos][band]=[...c.kitDef[pos][band]];
+      });
+    });
+    console.log('KIT_DEF読み込み完了 fryer.lunch:', KIT_DEF.fryer?.lunch);
+  }
+  if(c.floDef){
+    Object.keys(c.floDef).forEach(pos=>{
+      if(!FLO_DEF[pos])FLO_DEF[pos]={};
+      Object.keys(c.floDef[pos]).forEach(band=>{
+        FLO_DEF[pos][band]=[...c.floDef[pos][band]];
+      });
+    });
+  }
+  // 労働時間
+  if(c.labor){
+    ['gen','stu','sha','sei'].forEach(k=>{const el=document.getElementById('c-'+k);if(el&&c.labor[k])el.value=c.labor[k];});
+    const lastEl=document.getElementById('c-last');if(lastEl&&c.labor.last)lastEl.value=c.labor.last;
+  }
+  // 時給
+  if(c.wage){
+    ['gen','stu','sha','sei','lead','late','we'].forEach(k=>{const el=document.getElementById('w-'+k);if(el&&c.wage[k])el.value=c.wage[k];});
+  }
+  // 週末判定
+  if(c.weDays){
+    weDays=new Set(c.weDays);
+    document.querySelectorAll('#we-days .db').forEach(b=>b.classList.toggle('on',weDays.has(+b.dataset.d)));
+  }
+  // アイドルタイム
+  if(c.idleStart){const el=document.getElementById('idle-start');if(el)el.value=c.idleStart;}
+  if(c.idleEnd){const el=document.getElementById('idle-end');if(el)el.value=c.idleEnd;}
+  // テーブル再描画
+  initPosTbls();
+  console.log('条件設定を読み込みました');
+}
+
+// ── マイページ（スタッフ個人用） ──
+function addMyVacationRow(from='',to=''){
+  const list=document.getElementById('my-vacation-list');
+  const div=document.createElement('div');
+  div.style.cssText='display:flex;align-items:center;gap:6px;';
+  div.innerHTML=`
+    <input type="date" class="my-vac-from" value="${from}" style="flex:1;padding:8px;border:1.5px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--surface);color:var(--text);font-family:inherit">
+    <span style="color:var(--text3);font-size:12px;white-space:nowrap">〜</span>
+    <input type="date" class="my-vac-to" value="${to}" style="flex:1;padding:8px;border:1.5px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--surface);color:var(--text);font-family:inherit">
+    <button type="button" onclick="this.parentNode.remove()" style="padding:7px 9px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);cursor:pointer;color:var(--text3)"><i class="ti ti-x"></i></button>`;
+  list.appendChild(div);
+}
+async function loadMyPage(){
+  if(!currentStaffId)return;
+  const {data}=await sb.from('staff').select('avail,day_also,vacations').eq('id',currentStaffId).maybeSingle();
+  if(!data)return;
+  const av=data.avail||[0,1,2,3,4,5,6];
+  document.querySelectorAll('#my-days .db').forEach(b=>b.classList.toggle('on',av.includes(+b.dataset.d)));
+  const da=data.day_also||[];
+  document.querySelectorAll('#my-day-also .db').forEach(b=>b.classList.toggle('on',da.includes(+b.dataset.d)));
+  const list=document.getElementById('my-vacation-list');
+  list.innerHTML='';
+  (data.vacations||[]).forEach(v=>addMyVacationRow(v.from,v.to||v.from));
+}
+async function saveMyPage(){
+  if(!currentStaffId)return;
+  const avail=[...document.querySelectorAll('#my-days .db.on')].map(b=>+b.dataset.d);
+  const day_also=[...document.querySelectorAll('#my-day-also .db.on')].map(b=>+b.dataset.d);
+  const vacations=[...document.querySelectorAll('#my-vacation-list > div')].map(row=>{
+    const from=row.querySelector('.my-vac-from').value;
+    const to=row.querySelector('.my-vac-to').value||from;
+    return from?{from,to}:null;
+  }).filter(Boolean);
+  const {error}=await sb.from('staff').update({avail,day_also,vacations}).eq('id',currentStaffId);
+  if(error)alert('保存失敗: '+error.message);
+  else toast('保存しました！');
+}
+
+function bindDays(cid,store){
+  document.getElementById(cid).querySelectorAll('.db').forEach(b=>{
+    b.addEventListener('click',()=>{
+      b.classList.toggle('on');
+      if(store){const d=+b.dataset.d;if(b.classList.contains('on'))store.add(d);else store.delete(d);}
+    });
+  });
+}
+
+// ══ 初期データ（写真のシフト表から読み取り） ══
+const SEED_STAFF = [
+  // ── 社員 ──
+  {name:'白石',        type:'seiki',  skills:[{key:'fryer',level:'normal'},{key:'conro',level:'normal'},{key:'dishup',level:'normal'},{key:'dishwash',level:'normal'},{key:'sobaneri',level:'normal'},{key:'cashier',level:'normal'},{key:'hall',level:'normal'},{key:'leader',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'any'},
+  {name:'白坂',        type:'seiki',  skills:[{key:'fryer',level:'normal'},{key:'conro',level:'normal'},{key:'dishup',level:'normal'},{key:'dishwash',level:'normal'},{key:'sobaneri',level:'normal'},{key:'cashier',level:'normal'},{key:'hall',level:'normal'},{key:'leader',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'any'},
+  {name:'エー',        type:'seiki',  skills:[{key:'fryer',level:'normal'},{key:'conro',level:'normal'},{key:'dishup',level:'normal'},{key:'dishwash',level:'normal'},{key:'sobaneri',level:'normal'},{key:'cashier',level:'normal'},{key:'hall',level:'normal'},{key:'leader',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'any'},
+  {name:'ミン',        type:'seiki',  skills:[{key:'fryer',level:'normal'},{key:'conro',level:'normal'},{key:'dishup',level:'normal'},{key:'dishwash',level:'normal'},{key:'sobaneri',level:'normal'},{key:'cashier',level:'normal'},{key:'hall',level:'normal'},{key:'leader',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'any'},
+  {name:'大畑',        type:'seiki',  skills:[{key:'fryer',level:'normal'},{key:'conro',level:'normal'},{key:'dishup',level:'normal'},{key:'dishwash',level:'normal'},{key:'sobaneri',level:'normal'},{key:'cashier',level:'normal'},{key:'hall',level:'normal'},{key:'leader',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'any'},
+  // ── 昼キッチン（社保付き・パートタイム） ──
+  {name:'三浦 奈々',   type:'shahou', skills:[{key:'fryer',level:'normal',hojyo:false,renshu:false}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'石川 綾子',   type:'shahou', skills:[{key:'conro',level:'normal'},{key:'dishup',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'寺島 幸子',   type:'shahou', skills:[{key:'conro',level:'normal'},{key:'dishup',level:'normal'},{key:'fryer',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'権藤 朋子',   type:'shahou', skills:[{key:'dishwash',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'井上 眞規子', type:'shahou', skills:[{key:'fryer',level:'normal'},{key:'conro',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'吉田 富美子', type:'shahou', skills:[{key:'fryer',level:'normal'},{key:'conro',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'内野 ゆかり', type:'shahou', skills:[{key:'fryer',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'古川 滋子',   type:'shahou', skills:[{key:'conro',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  // ── 夜キッチン（学生） ──
+  {name:'野口 公葵',   type:'student', skills:[{key:'dishup',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'梅野 龍誠',   type:'student', skills:[{key:'dishup',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'川井 遙太郎', type:'student', skills:[{key:'dishwash',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'永田 美亜',   type:'student', skills:[{key:'fryer',level:'normal',hojyo:true}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'中村 明日哉', type:'student', skills:[{key:'fryer',level:'normal'},{key:'conro',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'野嵜 萌愛',   type:'student', skills:[{key:'fryer',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'松岡 紀親',   type:'student', skills:[{key:'conro',level:'normal',hojyo:true}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'中村 航太郎', type:'student', skills:[{key:'conro',level:'normal',hojyo:true}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'安達 光希',   type:'student', skills:[{key:'dishwash',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'二宮 誉彰',   type:'student', skills:[{key:'conro',level:'normal'},{key:'dishwash',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'延命 晃行',   type:'student', skills:[{key:'dishup',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'添田 桃子',   type:'student', skills:[{key:'fryer',level:'normal',hojyo:true},{key:'conro',level:'normal',hojyo:true}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'津村 恵太',   type:'student', skills:[{key:'fryer',level:'normal'},{key:'conro',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'高尾 大雅',   type:'student', skills:[{key:'dishwash',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'中島 彩',     type:'student', skills:[{key:'conro',level:'normal',renshu:true}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'永田 夕陽海', type:'student', skills:[{key:'fryer',level:'normal'},{key:'conro',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'宮崎 将司',   type:'student', skills:[{key:'dishwash',level:'normal'},{key:'conro',level:'normal',renshu:true}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'中田 美月',   type:'student', skills:[{key:'conro',level:'normal',renshu:true}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  // ── 昼ホール（社保付き） ──
+  {name:'大西 裕美子', type:'shahou', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'井関 美之',   type:'shahou', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'増野 由佳',   type:'shahou', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'田中 裕加里', type:'shahou', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'西原 千香子', type:'shahou', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'辻 香織',     type:'shahou', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'酒井 美香',   type:'shahou', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'浦田 広美',   type:'shahou', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'大場 久美',   type:'shahou', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'西牟田 楓',   type:'student',skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  {name:'スー',        type:'shahou', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'day'},
+  // ── 夜ホール（学生・一般） ──
+  {name:'河野 加奈子', type:'general', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'},{key:'leader',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'角本 拓真',   type:'general', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'森本 瑛大',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'},{key:'dishwash',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'冨永 旺佑',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'平川 大翔',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'片岡 佳晃',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'三島 一力',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'有吉 憲太',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'市川 友結',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'井手 陽菜',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'大嶺 菜緒',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'川村 宥花',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'黒田 優愛',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'桑山 結妃',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'下川 真夕',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'田口 陽',     type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'アニー',      type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'田村 賢太郎', type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'石橋 菜望',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'吉田 小巻',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'小野 瑞季',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'小林 樹華',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'小林 憲政',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'猪之鼻 來々', type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'石井 陸空',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'畠山 栞',     type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'},{key:'sobaneri',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'村上 祐楓',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'三宅 由津',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'中北 はな',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'王野 心菜',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+  {name:'稲村 倖誠',   type:'student', skills:[{key:'cashier',level:'normal'},{key:'hall',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'night'},
+];
+
+// 5月11日週のシフトデータ（写真から読み取り）
+const SEED_SHIFT_WEEK = '2025-05-11';
+const SEED_SHIFT = {
+  // 昼キッチン（スタッフ名 → {日付: シフト}）
+  '三浦 奈々':   {'2025-05-11':'F9-15', '2025-05-14':'F9-15', '2025-05-15':'9-15'},
+  '石川 綾子':   {'2025-05-12':'CD9-18','2025-05-13':'C9-18', '2025-05-14':'CD9-18','2025-05-16':'9-L','2025-05-17':'9-18'},
+  '寺島 幸子':   {'2025-05-11':'CD9-15','2025-05-12':'F9-15', '2025-05-15':'9-15'},
+  '権藤 朋子':   {'2025-05-11':'W11-16','2025-05-14':'W11-16','2025-05-15':'W11-16'},
+  '井上 眞規子': {'2025-05-11':'8-12',  '2025-05-14':'8-12',  '2025-05-15':'8-12'},
+  '吉田 富美子': {'2025-05-12':'8-14'},
+  '内野 ゆかり': {'2025-05-13':'F9-16', '2025-05-16':'9-16'},
+  '古川 滋子':   {'2025-05-12':'C11-15'},
+  // 夜キッチン
+  '野口 公葵':   {'2025-05-15':'D17-L', '2025-05-17':'D17-L'},
+  '梅野 龍誠':   {'2025-05-12':'D17-L', '2025-05-14':'D18-L', '2025-05-16':'D17-L'},
+  '川井 遙太郎': {'2025-05-14':'W17-20.5'},
+  '永田 美亜':   {'2025-05-14':'F18-22','2025-05-16':'F補17-22'},
+  '中村 明日哉': {'2025-05-11':'19-L',  '2025-05-17':'F18-L'},
+  '野嵜 萌愛':   {'2025-05-11':'F17-L'},
+  '松岡 紀親':   {'2025-05-15':'C補18-L','2025-05-17':'CW18-L'},
+  '中村 航太郎': {'2025-05-11':'C18-L', '2025-05-14':'C補18-22','2025-05-16':'C17-L'},
+  '安達 光希':   {'2025-05-14':'W〆20.5-L','2025-05-15':'W〆20.5-L'},
+  '二宮 誉彰':   {'2025-05-17':'CW18-L'},
+  '延命 晃行':   {'2025-05-13':'D16-L', '2025-05-16':'10-17'},
+  '添田 桃子':   {'2025-05-12':'FC補18-L','2025-05-13':'C補18-L'},
+  '高尾 大雅':   {'2025-05-13':'W18-22'},
+  '中島 彩':     {'2025-05-12':'C練18-L','2025-05-15':'C練18-L'},
+  '宮崎 将司':   {'2025-05-12':'W15-22','2025-05-13':'C練15-22','2025-05-15':'W15-L'},
+  '中田 美月':   {'2025-05-14':'C練18.5-L'},
+  '白石':        {'2025-05-11':'-L',    '2025-05-12':'8-L',   '2025-05-13':'8-16棚','2025-05-14':'H',  '2025-05-15':'H',  '2025-05-16':'8-L','2025-05-17':'8-L'},
+  '白坂':        {'2025-05-11':'9-16',  '2025-05-12':'H',     '2025-05-13':'9-L',   '2025-05-14':'9-L','2025-05-15':'9-L','2025-05-16':'H',  '2025-05-17':'9-18'},
+  // 昼ホール
+  '大西 裕美子': {'2025-05-11':'9-14',  '2025-05-13':'9-14',  '2025-05-14':'9-14.5'},
+  '井関 美之':   {'2025-05-12':'10-15', '2025-05-13':'11-16', '2025-05-15':'9-13'},
+  '増野 由佳':   {'2025-05-12':'9-14',  '2025-05-13':'10-15', '2025-05-15':'9-14'},
+  '田中 裕加里': {'2025-05-11':'9-14',  '2025-05-14':'9-14',  '2025-05-16':'9-13',  '2025-05-17':'9-13'},
+  '西原 千香子': {'2025-05-12':'9-14',  '2025-05-13':'10-15', '2025-05-15':'10-15'},
+  '辻 香織':     {'2025-05-11':'10-14', '2025-05-14':'10-14', '2025-05-15':'10-14'},
+  '浦田 広美':   {'2025-05-12':'10-14'},
+  '大場 久美':   {'2025-05-14':'9-14',  '2025-05-16':'9-14',  '2025-05-17':'9-14'},
+  // 夜ホール
+  '河野 加奈子': {'2025-05-11':'18-L',  '2025-05-12':'14-18', '2025-05-16':'10-16', '2025-05-17':'10-16'},
+  '角本 拓真':   {'2025-05-11':'11-17', '2025-05-15':'15-18'},
+  '森本 瑛大':   {'2025-05-12':'9-17',  '2025-05-17':'W9-15'},
+  '冨永 旺佑':   {'2025-05-12':'15-L',  '2025-05-15':'18-L',  '2025-05-16':'17-L'},
+  '片岡 佳晃':   {'2025-05-15':'18-L',  '2025-05-16':'17-L'},
+  '三島 一力':   {'2025-05-13':'16-L',  '2025-05-15':'11-16'},
+  '市川 友結':   {'2025-05-15':'17-L'},
+  '井手 陽菜':   {'2025-05-13':'18-L',  '2025-05-16':'11-16'},
+  '大嶺 菜緒':   {'2025-05-16':'17-L',  '2025-05-17':'17-L'},
+  '川村 宥花':   {'2025-05-16':'10-15'},
+  '黒田 優愛':   {'2025-05-11':'18-L',  '2025-05-14':'18-L',  '2025-05-17':'11-20'},
+  '桑山 結妃':   {'2025-05-11':'17.5-L','2025-05-12':'18-L',  '2025-05-14':'17.5-L','2025-05-17':'11-L'},
+  '下川 真夕':   {'2025-05-15':'18-L',  '2025-05-17':'17-L'},
+  '田口 陽':     {'2025-05-11':'14-18', '2025-05-12':'17-L',  '2025-05-14':'16.5-L'},
+  'アニー':      {'2025-05-17':'11-16'},
+  '田村 賢太郎': {'2025-05-15':'18-L',  '2025-05-17':'17-L'},
+  '石橋 菜望':   {'2025-05-15':'17-L',  '2025-05-16':'15-18', '2025-05-17':'17-L'},
+  '吉田 小巻':   {'2025-05-15':'14-18', '2025-05-16':'12-17'},
+  '小野 瑞季':   {'2025-05-11':'17-L',  '2025-05-13':'12-18.5','2025-05-16':'16-L'},
+  '小林 樹華':   {'2025-05-17':'11-17'},
+  '小林 憲政':   {'2025-05-13':'18-L',  '2025-05-14':'14-18'},
+  '猪之鼻 來々': {'2025-05-11':'18-L',  '2025-05-13':'17-L',  '2025-05-17':'18-L'},
+  '石井 陸空':   {'2025-05-12':'18-L',  '2025-05-14':'17.5-L'},
+  '畠山 栞':     {'2025-05-17':'S10-17'},
+  '村上 祐楓':   {'2025-05-12':'17-22', '2025-05-14':'17-22'},
+  '三宅 由津':   {'2025-05-17':'14-17'},
+  '王野 心菜':   {'2025-05-13':'18-L',  '2025-05-16':'17-L'},
+  '稲村 倖誠':   {'2025-05-12':'18-L',  '2025-05-17':'11-16'},
+  'エー':        {'2025-05-11':'10-18', '2025-05-12':'H',     '2025-05-13':'H',     '2025-05-14':'10-18','2025-05-15':'11-L','2025-05-16':'11-L','2025-05-17':'14-L'},
+  'ミン':        {'2025-05-11':'H',     '2025-05-12':'H',     '2025-05-13':'10-18', '2025-05-14':'14-L', '2025-05-15':'13-L','2025-05-16':'11-L','2025-05-17':'10-18'},
+  '大畑':        {'2025-05-11':'14-L',  '2025-05-12':'14-L',  '2025-05-13':'11-L',  '2025-05-14':'11-18','2025-05-15':'H',   '2025-05-16':'H',   '2025-05-17':'14-L'},
+};
+
+async function seedInitialData(){
+  const forceReset=location.search.includes('reset=1');
+  if(!forceReset){
+    // 通常時：スタッフが1人でもいればスキップ
+    try{
+      const {data:existing,error}=await sb.from('staff').select('id').limit(1);
+      if(error){console.log('DB接続確認失敗、シードスキップ:',error.message);return;}
+      if(existing&&existing.length>0){
+        console.log('スタッフデータ既存 — シードスキップ');
+        return;
+      }
+    }catch(e){
+      console.log('シード確認エラー、スキップ:',e);
+      return;
+    }
+  }
+  if(forceReset){
+    await sb.from('shifts').delete().neq('id','00000000-0000-0000-0000-000000000000');
+    await sb.from('staff').delete().neq('id','00000000-0000-0000-0000-000000000000');
+  }
+  console.log('初期データを投入中... 件数:'+SEED_STAFF.length);
+
+  // 10件ずつ分割して挿入（タイムアウト防止）
+  const chunk=10;
+  for(let i=0;i<SEED_STAFF.length;i+=chunk){
+    const batch=SEED_STAFF.slice(i,i+chunk).map(s=>({
+      name:s.name,
+      type:s.type,
+      max_h:null,
+      wage:null,
+      skills:s.skills,
+      abilities:[],
+      avail:s.avail,
+      pref:s.pref
+    }));
+    const {error}=await sb.from('staff').insert(batch);
+    if(error){
+      console.error('スタッフ挿入エラー('+i+'):',error.message,error.details);
+      return;
+    }
+    console.log(`スタッフ投入: ${i+1}〜${Math.min(i+chunk,SEED_STAFF.length)}件目`);
+  }
+
+  const {data:staffRows}=await sb.from('staff').select('id,name').order('created_at');
+  if(!staffRows)return;
+  const nameToId={};
+  staffRows.forEach(s=>nameToId[s.name]=s.id);
+
+  const schedule={};
+  Object.entries(SEED_SHIFT).forEach(([name,days])=>{
+    const sid=nameToId[name];
+    if(!sid)return;
+    schedule[sid]=days;
+  });
+
+  const {error:shiftErr}=await sb.from('shifts').insert({
+    week_start:SEED_SHIFT_WEEK,
+    schedule
+  });
+  if(shiftErr)console.error('シフト挿入エラー:',shiftErr.message);
+  else console.log('初期データ投入完了！');
+}
+
+async function init(){
+  initPosTbls();initModalLists();
+  bindDays('we-days',weDays);bindDays('mod-days',null);bindDays('mod-day-also',null);
+  renderWkLbl();
+  await loadHolidays();
+  await loadCond();// 条件設定を読み込む
+  await seedInitialData();
+  await loadStaff();
+  if(role==='staff'){go('mypage');bindDays('my-days',null);bindDays('my-day-also',null);}
+  else bindDays('my-days',null);
+}
+</script>
+</body>
+</html>
