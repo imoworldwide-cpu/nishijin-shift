@@ -497,7 +497,26 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
             </table></div>
           </div>
           <div class="card">
-            <div class="card-title"><i class="ti ti-layout"></i>ホール 必要人数（曜日ごと・時間帯別）</div>
+            <div class="card-title"><i class="ti ti-sun"></i>朝準備 人数（ランチシフトの中から何人を9時入りにするか）</div>
+            <p style="font-size:11px;color:var(--text3);margin-bottom:8px">設定人数分のランチスタッフが9-15で入り、残りは11-15になります。</p>
+            <table class="pos-tbl" style="width:100%">
+              <thead><tr>
+                <th>　</th>
+                <th>月</th><th>火</th><th>水</th><th>木</th><th>金</th>
+                <th class="th-we">土</th><th class="th-we">日</th>
+              </tr></thead>
+              <tbody>
+                <tr>
+                  <td style="font-weight:700;font-size:12px">キッチン 9時入り</td>
+                  ${[0,1,2,3,4,5,6].map(i=>`<td><input type="number" id="mp-${i}" value="2" min="0" max="10" style="width:40px;text-align:center;border:1px solid var(--border2);border-radius:4px;padding:3px;font-size:12px"></td>`).join('')}
+                </tr>
+                <tr>
+                  <td style="font-weight:700;font-size:12px">ホール 9時入り</td>
+                  ${[0,1,2,3,4,5,6].map(i=>`<td><input type="number" id="mh-${i}" value="2" min="0" max="10" style="width:40px;text-align:center;border:1px solid var(--border2);border-radius:4px;padding:3px;font-size:12px"></td>`).join('')}
+                </tr>
+              </tbody>
+            </table>
+          </div>
             <div class="pos-wrap"><table class="pos-tbl" id="fl-table">
               <thead><tr>
                 <th>ポジション</th>
@@ -874,10 +893,8 @@ const KIT=[
   {key:'conro',   lbl:'C コンロ',     subOpt:true},
   {key:'dishup',  lbl:'D ディシャップ',subOpt:true},
   {key:'dishwash',lbl:'W 洗い場',     subOpt:false},
-  {key:'morning', lbl:'朝準備',        subOpt:false},
 ];
 const FLO=[
-  {key:'morning_hall',lbl:'朝準備（ホール）',subOpt:false},
   {key:'cashier',lbl:'レジ',subOpt:false},
   {key:'hall',lbl:'ホール',subOpt:false},
   {key:'leader',lbl:'リーダー',subOpt:false},
@@ -890,23 +907,23 @@ const PAL=['#B5D4F4:#0C447C','#9FE1CB:#085041','#CECBF6:#3C3489','#FAC775:#63380
 const TLBL={general:'スタッフ',student:'学生',parttime:'スタッフ',shahou:'社保付き',junseiki:'セカンド社員',seiki:'社員'};
 const TCLS={general:'tb-general',student:'tb-student',parttime:'tb-general',shahou:'tb-shahou',junseiki:'tb-junseiki',seiki:'tb-seiki'};
 // 必要人数: {ポジションキー: {時間帯: [月,火,水,木,金,土,日]}}
-// 時間帯: lunch/idle/dinner
 function makeDefArr(w,e){return[w,w,w,w,w,e,e];}
 const KIT_DEF={
   fryer:   {lunch:makeDefArr(2,2),idle:makeDefArr(1,1),dinner:makeDefArr(1,1)},
   conro:   {lunch:makeDefArr(1,2),idle:makeDefArr(1,1),dinner:makeDefArr(1,2)},
   dishup:  {lunch:makeDefArr(2,3),idle:makeDefArr(1,1),dinner:makeDefArr(2,2)},
   dishwash:{lunch:makeDefArr(1,2),idle:makeDefArr(1,1),dinner:makeDefArr(1,1)},
-  morning: {lunch:makeDefArr(1,1),idle:makeDefArr(0,0),dinner:makeDefArr(0,0)},
   other_kit:{lunch:makeDefArr(0,0),idle:makeDefArr(0,0),dinner:makeDefArr(0,0)},
 };
 const FLO_DEF={
-  morning_hall:{lunch:makeDefArr(1,1),idle:makeDefArr(0,0),dinner:makeDefArr(0,0)},
   cashier:  {lunch:makeDefArr(2,3),idle:makeDefArr(1,1),dinner:makeDefArr(1,2)},
   hall:     {lunch:makeDefArr(2,3),idle:makeDefArr(1,1),dinner:makeDefArr(2,3)},
   leader:   {lunch:makeDefArr(1,1),idle:makeDefArr(1,1),dinner:makeDefArr(1,1)},
   other_flo:{lunch:makeDefArr(0,0),idle:makeDefArr(0,0),dinner:makeDefArr(0,0)},
 };
+// 朝準備人数（ランチシフトの中から何人を9時入りにするか）
+let MORNING_PREP=makeDefArr(2,2);// キッチン朝準備（9時入り）人数
+let MORNING_PREP_HALL=makeDefArr(2,2);// ホール朝準備（9時入り）人数
 
 // 祝日キャッシュ
 let holidaySet=new Set();
@@ -1375,10 +1392,9 @@ async function genShiftAsync(){
     const dayCount={};
     dates.forEach(d=>{
       dayCount[fmtD(d)]={};
-      [...KIT,{key:'hall'},{key:'leader'},{key:'morning_hall'}].forEach(p=>{
+      [...KIT,{key:'hall'},{key:'leader'}].forEach(p=>{
         dayCount[fmtD(d)][p.key]={lunch:0,idle:0,dinner:0};
       });
-      dayCount[fmtD(d)]['morning']={lunch:0,idle:0,dinner:0};
     });
 
     const allowedBands=new Set(['lunch','idle','dinner']);
@@ -1425,14 +1441,8 @@ async function genShiftAsync(){
       if(band==='dinner'&&!prefIncludes(effPref,'night'))return false;
 
       const effectivePosKey=posKey==='cashier'?'hall':posKey;
-      if(s.type==='seiki'){
-        if(effectivePosKey!=='other_kit'&&effectivePosKey!=='other_flo')return false;
-      }
-      if(effectivePosKey==='morning'){
-        if(!sk.includes('morning'))return false;
-      } else if(effectivePosKey==='morning_hall'){
-        if(!sk.includes('morning_hall')&&s.type!=='seiki')return false;
-      } else if(KIT_KEYS.includes(effectivePosKey)){
+      if(s.type==='seiki')return false;// 社員はAI生成対象外
+      if(KIT_KEYS.includes(effectivePosKey)){
         if(!sk.includes(effectivePosKey))return false;
       } else if(['hall','leader'].includes(effectivePosKey)){
         if(!sk.includes('cashier')&&!sk.includes('hall'))return false;
@@ -1448,10 +1458,6 @@ async function genShiftAsync(){
       let start='',h=0;
       if(isSei2){
         start=isHall?'9-L':`${codeMap2[posKey]||''}9-L`;h=lastH2-9;
-      } else if(effectivePosKey==='morning'&&band==='lunch'){
-        start='9-12';h=3;
-      } else if(effectivePosKey==='morning_hall'&&band==='lunch'){
-        start='9-12';h=3;
       } else if(isJun){
         // セカンド社員は最低労働時間を考慮して長めのシフトを選ぶ
         const minH=s.min_h||0;
@@ -1474,9 +1480,20 @@ async function genShiftAsync(){
           start=isHall?'18-L':`${codeMap2[posKey]||''}17-L`;h=5.5;
         }
       } else if(band==='lunch'){
-        const morningFull=(dayCount[dateStr]['morning']?.lunch||0)>=(getRequired('morning','lunch',dayIdx)||0)&&getRequired('morning','lunch',dayIdx)>0;
-        start=isHall?'9-14':`${codeMap2[posKey]||''}${morningFull?'11':'9'}-15`;
-        h=isHall?5:(morningFull?4:6);
+        // 朝準備人数分だけ早め入り、残りは遅め入り
+        if(isHall){
+          const hallMorningNeeded=MORNING_PREP_HALL[dayIdx]||0;
+          const hallMorningDone=Object.values(sd).filter(sh=>sh[dateStr]&&sh[dateStr].match(/^9-1[45]/)).length;
+          const needEarlyHall=hallMorningDone<hallMorningNeeded;
+          start=needEarlyHall?'9-14':'10-14';
+          h=needEarlyHall?5:4;
+        } else {
+          const morningNeeded=MORNING_PREP[dayIdx]||0;
+          const morningDone=Object.values(sd).filter(sh=>sh[dateStr]&&sh[dateStr].match(/^[FCDW]?9-1[25]/)).length;
+          const needEarlyStart=morningDone<morningNeeded;
+          start=`${codeMap2[posKey]||''}${needEarlyStart?'9':'11'}-15`;
+          h=needEarlyStart?6:4;
+        }
       } else if(band==='idle'){
         start=isHall?'15-18':`${codeMap2[posKey]||''}15-18`;h=3;
       } else if(band==='dinner'){
@@ -1491,8 +1508,8 @@ async function genShiftAsync(){
       return true;
     }
 
-    const kitPos=[...KIT.map(p=>p.key),'morning','other_kit'];
-    const floPos=[...FLO.filter(p=>p.key!=='cashier').map(p=>p.key),'morning_hall','other_flo'];
+    const kitPos=[...KIT.map(p=>p.key),'other_kit'];
+    const floPos=[...FLO.filter(p=>p.key!=='cashier').map(p=>p.key),'other_flo'];
     const allPos2=curSec.startsWith('kitchen')?kitPos:curSec.startsWith('hall')?floPos:[...kitPos,...floPos];
 
     allPos2.forEach(posKey=>{
@@ -1630,8 +1647,8 @@ async function genShiftAsync(){
 
     // 振り替え
     const checkPos2=[];
-    if(curSec==='all'||curSec.startsWith('kitchen')){KIT.forEach(p=>{if(p.key!=='morning')checkPos2.push(p.key);});checkPos2.push('morning');}
-    if(curSec==='all'||curSec.startsWith('hall')){FLO.forEach(p=>checkPos2.push(p.key));checkPos2.push('morning_hall');}
+    if(curSec==='all'||curSec.startsWith('kitchen')){KIT.forEach(p=>checkPos2.push(p.key));}
+    if(curSec==='all'||curSec.startsWith('hall')){FLO.forEach(p=>checkPos2.push(p.key));}
     dates.forEach(d=>{
       const dayIdx=getDayIdx(d);
       const dateStr=fmtD(d);
@@ -1646,11 +1663,8 @@ async function genShiftAsync(){
             const dateShift=sd[s.id]?.[dateStr];
             if(!dateShift||!dateShift.trim())continue;
             const sk=getSkillKeys(s);
-            // 社員・セカンド社員はmorningへの振り替えをしない
-            if((neededPos==='morning'||neededPos==='morning_hall')&&(s.type==='seiki'||s.type==='junseiki'))continue;
-            if(neededPos==='morning'&&s.type!=='seiki'&&!sk.includes('morning'))continue;
-            if(neededPos==='morning_hall'&&s.type!=='seiki'&&!sk.includes('morning_hall'))continue;
-            if(KIT_KEYS.includes(neededPos)&&neededPos!=='morning'&&!sk.includes(neededPos))continue;
+            // 社員・セカンド社員はmorningへの振り替えをしない（不要になったため）
+            if(KIT_KEYS.includes(neededPos)&&!sk.includes(neededPos))continue;
             if(['hall','leader'].includes(neededPos)&&!sk.includes('cashier')&&!sk.includes('hall'))continue;
             if(s.type!=='seiki'){
               const curCode=dateShift.trim().match(/^(練|補)?([FCDWS])?/)?.[2]||'';
@@ -1661,16 +1675,11 @@ async function genShiftAsync(){
               const curActual=dayCount[dateStr][curPos]?.[band]||0;
               if(curRequired>0&&curActual<=curRequired)continue;
             }
-            const isMorning=neededPos==='morning'||neededPos==='morning_hall';
-            if(isMorning){
-              sd[s.id][dateStr]='9-12';wh[s.id]+=3;
-            } else {
-              const newCode=codeMap2[neededPos]||'';
-              const isHallNew=['cashier','hall','leader'].includes(neededPos);
-              const timeMatch=dateShift.match(/(\d+(?:\.\d+)?-(?:L|\d+(?:\.\d+)?))/);
-              if(!timeMatch)continue;
-              sd[s.id][dateStr]=isHallNew?timeMatch[1]:`${newCode}${timeMatch[1]}`;
-            }
+            const newCode=codeMap2[neededPos]||'';
+            const isHallNew=['cashier','hall','leader'].includes(neededPos);
+            const timeMatch=dateShift.match(/(\d+(?:\.\d+)?-(?:L|\d+(?:\.\d+)?))/);
+            if(!timeMatch)continue;
+            sd[s.id][dateStr]=isHallNew?timeMatch[1]:`${newCode}${timeMatch[1]}`;
             if(!dayCount[dateStr][neededPos])dayCount[dateStr][neededPos]={lunch:0,idle:0,dinner:0};
             dayCount[dateStr][neededPos][band]=(dayCount[dateStr][neededPos][band]||0)+1;
           }
@@ -1696,14 +1705,11 @@ async function genShiftAsync(){
   fixedShifts.forEach(f=>{
     const s=staff.find(x=>x.id===f.staff_id);
     if(!s)return;
-    const isHallPos=['hall','leader','morning_hall','cashier'].includes(f.pos_key);
+    const isHallPos=['hall','leader','cashier'].includes(f.pos_key);
     const newCode=codeMapFx[f.pos_key]||'';
     let start='';
-    // shift_timeが設定されていればそれを優先
     if(f.shift_time){
       start=f.shift_time;
-    } else if(f.pos_key==='morning'||f.pos_key==='morning_hall'){
-      start='9-12';
     } else if(f.band==='lunch'){start=isHallPos?'9-14':`${newCode}11-15`;}
     else if(f.band==='idle'){start=isHallPos?'15-18':`${newCode}15-18`;}
     else if(f.band==='dinner'){start=isHallPos?'18-L':`${newCode}17-L`;}
@@ -1766,8 +1772,8 @@ async function genShiftAsync(){
 
   // 最良試行のdayCountから不足を直接集計
   const checkPos=[];
-  if(curSec==='all'||curSec.startsWith('kitchen')){KIT.forEach(p=>{if(p.key!=='morning')checkPos.push(p.key);});checkPos.push('morning');}
-  if(curSec==='all'||curSec.startsWith('hall')){FLO.forEach(p=>checkPos.push(p.key));checkPos.push('morning_hall');}
+  if(curSec==='all'||curSec.startsWith('kitchen')){KIT.forEach(p=>checkPos.push(p.key));}
+  if(curSec==='all'||curSec.startsWith('hall')){FLO.forEach(p=>checkPos.push(p.key));}
   const allowedBands=new Set(['lunch','idle','dinner']);
   if(curSec==='kitchen-day'||curSec==='hall-day'){allowedBands.clear();allowedBands.add('lunch');}
   else if(curSec==='kitchen-idle'||curSec==='hall-idle'){allowedBands.clear();allowedBands.add('idle');}
@@ -1958,7 +1964,7 @@ function initPosTbls(){
     document.getElementById(id).innerHTML=html;
   }
   rows(KIT,KIT_DEF,'kt-body',[{key:'other_kit',lbl:'その他'}]);
-  rows(FLO,FLO_DEF,'fl-body',[{key:'morning_hall',lbl:'朝準備（ホール）'},{key:'other_flo',lbl:'その他'}]);
+  rows(FLO,FLO_DEF,'fl-body',[{key:'other_flo',lbl:'その他'}]);
 }
 function updPosDay(pos,band,dayIdx,val){
   if(KIT_DEF[pos]){if(!KIT_DEF[pos][band])KIT_DEF[pos][band]=[0,0,0,0,0,0,0];KIT_DEF[pos][band][dayIdx]=+val;}
@@ -2398,10 +2404,14 @@ async function saveStaff(){
 }
 function closeMod(){document.getElementById('mod-staff').classList.remove('open');}
 async function saveCond(){
-  // 条件設定をSupabaseに保存
+  // 朝準備人数を取得
+  MORNING_PREP=[0,1,2,3,4,5,6].map(i=>+document.getElementById(`mp-${i}`)?.value||0);
+  MORNING_PREP_HALL=[0,1,2,3,4,5,6].map(i=>+document.getElementById(`mh-${i}`)?.value||0);
   const condData={
     kitDef:KIT_DEF,
     floDef:FLO_DEF,
+    morningPrep:MORNING_PREP,
+    morningPrepHall:MORNING_PREP_HALL,
     labor:{
       gen:cv('c-gen'),stu:cv('c-stu'),sha:cv('c-sha'),sei:cv('c-sei'),last:cv('c-last')
     },
@@ -2457,6 +2467,15 @@ async function loadCond(){
   // アイドルタイム
   if(c.idleStart){const el=document.getElementById('idle-start');if(el)el.value=c.idleStart;}
   if(c.idleEnd){const el=document.getElementById('idle-end');if(el)el.value=c.idleEnd;}
+  // 朝準備人数
+  if(c.morningPrep){
+    MORNING_PREP=[...c.morningPrep];
+    [0,1,2,3,4,5,6].forEach(i=>{const el=document.getElementById(`mp-${i}`);if(el)el.value=MORNING_PREP[i]||0;});
+  }
+  if(c.morningPrepHall){
+    MORNING_PREP_HALL=[...c.morningPrepHall];
+    [0,1,2,3,4,5,6].forEach(i=>{const el=document.getElementById(`mh-${i}`);if(el)el.value=MORNING_PREP_HALL[i]||0;});
+  }
   // テーブル再描画
   initPosTbls();
   console.log('条件設定を読み込みました');
