@@ -755,6 +755,50 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     <button type="button" class="btn" onclick="addVacationRow()" style="width:100%;justify-content:center;margin-bottom:4px">
       <i class="ti ti-plus"></i>休暇希望を追加
     </button>
+
+    <!-- 社員・セカンド社員のみ表示 -->
+    <div id="seiki-fixed-section" style="display:none">
+      <div class="sec-div">固定休み曜日 <span style="font-weight:400;font-size:10px;color:var(--text3)">（毎週必ず休み）</span></div>
+      <div class="mf">
+        <div class="day-row" id="mod-fixed-off">
+          <button type="button" class="db" data-d="0" onclick="this.classList.toggle('on')">月</button>
+          <button type="button" class="db" data-d="1" onclick="this.classList.toggle('on')">火</button>
+          <button type="button" class="db" data-d="2" onclick="this.classList.toggle('on')">水</button>
+          <button type="button" class="db" data-d="3" onclick="this.classList.toggle('on')">木</button>
+          <button type="button" class="db" data-d="4" onclick="this.classList.toggle('on')">金</button>
+          <button type="button" class="db" data-d="5" onclick="this.classList.toggle('on')">土</button>
+          <button type="button" class="db" data-d="6" onclick="this.classList.toggle('on')">日</button>
+        </div>
+      </div>
+      <div class="sec-div">固定シフト <span style="font-weight:400;font-size:10px;color:var(--text3)">（毎週この曜日はこの時間で入る）</span></div>
+      <div class="mf">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <tr style="background:var(--surface2)">
+            <th style="padding:6px;text-align:center;border:1px solid var(--border2)">曜日</th>
+            <th style="padding:6px;text-align:center;border:1px solid var(--border2)">シフト時間<br><span style="font-weight:400;color:var(--text3)">例: 9-L / 15-L / 9-18</span></th>
+            <th style="padding:6px;text-align:center;border:1px solid var(--border2)">ポジション<br><span style="font-weight:400;color:var(--text3)">空欄=その他</span></th>
+          </tr>
+          ${['月','火','水','木','金','土','日'].map((d,i)=>`
+          <tr>
+            <td style="padding:6px;text-align:center;border:1px solid var(--border2);font-weight:700">${d}</td>
+            <td style="padding:4px;border:1px solid var(--border2)"><input type="text" id="fx-time-${i}" placeholder="空欄=固定なし" style="width:100%;padding:6px;border:1px solid var(--border2);border-radius:4px;font-size:12px;font-family:inherit;background:var(--surface);color:var(--text)"></td>
+            <td style="padding:4px;border:1px solid var(--border2)">
+              <select id="fx-pos-${i}" style="width:100%;padding:6px;border:1px solid var(--border2);border-radius:4px;font-size:12px;font-family:inherit;background:var(--surface);color:var(--text)">
+                <option value="">その他</option>
+                <option value="fryer">フライヤー(F)</option>
+                <option value="conro">コンロ(C)</option>
+                <option value="dishup">ディシャップ(D)</option>
+                <option value="dishwash">洗い場(W)</option>
+                <option value="morning">朝準備</option>
+                <option value="hall">ホール</option>
+                <option value="leader">リーダー</option>
+              </select>
+            </td>
+          </tr>`).join('')}
+        </table>
+      </div>
+    </div>
+
     <div class="macts">
       <button class="btn danger" id="del-btn" onclick="delStaff()" style="display:none"><i class="ti ti-trash"></i>削除</button>
       <button class="btn" onclick="closeMod()">キャンセル</button>
@@ -1378,6 +1422,8 @@ async function genShiftAsync(){
       const isHall=!kitSk.length&&floSk.length;
 
       if(!av.includes(dayIdx))return false;
+      // 固定休み曜日チェック
+      if((s.fixed_days_off||[]).includes(dayIdx))return false;
       if(sd[s.id][dateStr]!=='')return false;
       const mhValN=mxH(s);
       const avgShiftH=pref==='night'?5.5:pref==='day'?4:5;
@@ -1606,8 +1652,12 @@ async function genShiftAsync(){
     const isHallPos=['hall','leader','morning_hall','cashier'].includes(f.pos_key);
     const newCode=codeMapFx[f.pos_key]||'';
     let start='';
-    if(f.pos_key==='morning'||f.pos_key==='morning_hall'){start='9-12';}
-    else if(f.band==='lunch'){start=isHallPos?'9-14':`${newCode}11-15`;}
+    // shift_timeが設定されていればそれを優先
+    if(f.shift_time){
+      start=f.shift_time;
+    } else if(f.pos_key==='morning'||f.pos_key==='morning_hall'){
+      start='9-12';
+    } else if(f.band==='lunch'){start=isHallPos?'9-14':`${newCode}11-15`;}
     else if(f.band==='idle'){start=isHallPos?'15-18':`${newCode}15-18`;}
     else if(f.band==='dinner'){start=isHallPos?'18-L':`${newCode}17-L`;}
     if(!start)return;
@@ -2108,6 +2158,8 @@ function onTypeChange(type){
   const isSei=type==='seiki'||type==='junseiki';
   document.getElementById('wage-field').style.display=isSei?'none':'block';
   document.getElementById('monthly-field').style.display=isSei?'block':'none';
+  const fixedSec=document.getElementById('seiki-fixed-section');
+  if(fixedSec)fixedSec.style.display=isSei?'block':'none';
 }
 function openAdd(){
   document.getElementById('mod-title').textContent='スタッフ追加';
@@ -2169,6 +2221,27 @@ function editStaff(id){
   const hasHallM=(s.abilities||[]).includes('morning_hall');
   if(hallMCb){hallMCb.checked=hasHallM;onHallMorningChange(hallMCb);}
   colorFields();
+
+  // 固定休み・固定シフトの復元（社員・セカンド社員のみ）
+  const isSeiType=s.type==='seiki'||s.type==='junseiki';
+  const fixedSec=document.getElementById('seiki-fixed-section');
+  if(fixedSec)fixedSec.style.display=isSeiType?'block':'none';
+  if(isSeiType){
+    // 固定休み曜日
+    const fixedOff=s.fixed_days_off||[];
+    document.querySelectorAll('#mod-fixed-off .db').forEach(b=>{
+      b.classList.toggle('on',fixedOff.includes(+b.dataset.d));
+    });
+    // 固定シフト
+    const myFixed=fixedShifts.filter(f=>f.staff_id===s.id);
+    for(let i=0;i<7;i++){
+      const tEl=document.getElementById(`fx-time-${i}`);
+      const pEl=document.getElementById(`fx-pos-${i}`);
+      const fx=myFixed.find(f=>f.day_idx===i);
+      if(tEl)tEl.value=fx?fx.shift_time||'':'';
+      if(pEl)pEl.value=fx?fx.pos_key||'':'';
+    }
+  }
   document.getElementById('del-btn').style.display='inline-flex';
   document.getElementById('mod-staff').classList.add('open');
 }
@@ -2209,9 +2282,39 @@ async function saveStaff(){
   const abilities=[...(hasSoba?['sobaneri']:[]),...(hasHallM?['morning_hall']:[])];
   const vacations=getVacations();
   const day_also=getDayAlso();
-  const obj={name,type,max_h,max_days,min_days,wage,password,skills:skillsArr,abilities,avail,pref,vacations,day_also};
+  const isSeiType=type==='seiki'||type==='junseiki';
+  // 固定休み曜日
+  const fixed_days_off=isSeiType
+    ?[...document.querySelectorAll('#mod-fixed-off .db.on')].map(b=>+b.dataset.d)
+    :[];
+  const obj={name,type,max_h,max_days,min_days,wage,password,skills:skillsArr,abilities,avail,pref,vacations,day_also,fixed_days_off};
   const eid=document.getElementById('eid').value;
-  try{await saveStaffDB(obj,eid||null);closeMod();toast(eid?'更新しました':'追加しました');}catch(e){alert('保存失敗: '+e.message);}
+  try{
+    await saveStaffDB(obj,eid||null);
+    // 固定シフトの保存（社員・セカンド社員のみ）
+    if(isSeiType&&eid){
+      // 既存の固定シフトを削除
+      await sb.from('fixed_shifts').delete().eq('staff_id',eid);
+      // 新しい固定シフトを追加
+      const newFixed=[];
+      for(let i=0;i<7;i++){
+        const timeVal=document.getElementById(`fx-time-${i}`)?.value?.trim();
+        const posVal=document.getElementById(`fx-pos-${i}`)?.value||'';
+        if(timeVal){
+          // 時間帯を判定
+          const startM=timeVal.match(/^(\d+(?:\.\d+)?)-/);
+          const startT=startM?parseFloat(startM[1]):0;
+          const band=startT<15?'lunch':startT<18?'idle':'dinner';
+          newFixed.push({staff_id:eid,day_idx:i,band,pos_key:posVal||'other_kit',shift_time:timeVal});
+        }
+      }
+      if(newFixed.length>0){
+        await sb.from('fixed_shifts').insert(newFixed);
+      }
+      await loadFixedShifts();
+    }
+    closeMod();toast(eid?'更新しました':'追加しました');
+  }catch(e){alert('保存失敗: '+e.message);}
 }
 function closeMod(){document.getElementById('mod-staff').classList.remove('open');}
 async function saveCond(){
