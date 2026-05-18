@@ -1624,6 +1624,8 @@ async function genShiftAsync(){
             const dateShift=sd[s.id]?.[dateStr];
             if(!dateShift||!dateShift.trim())continue;
             const sk=getSkillKeys(s);
+            // 社員・セカンド社員はmorningへの振り替えをしない
+            if((neededPos==='morning'||neededPos==='morning_hall')&&(s.type==='seiki'||s.type==='junseiki'))continue;
             if(neededPos==='morning'&&s.type!=='seiki'&&!sk.includes('morning'))continue;
             if(neededPos==='morning_hall'&&s.type!=='seiki'&&!sk.includes('morning_hall'))continue;
             if(KIT_KEYS.includes(neededPos)&&neededPos!=='morning'&&!sk.includes(neededPos))continue;
