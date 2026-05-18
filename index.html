@@ -350,6 +350,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     </div>
     <button class="rail-btn active" data-pg="staff" onclick="go('staff')"><i class="ti ti-users"></i><span class="ttip">スタッフ</span></button>
     <button class="rail-btn" data-pg="cond" onclick="go('cond')"><i class="ti ti-settings"></i><span class="ttip">条件設定</span></button>
+    <button class="rail-btn mgr-only" data-pg="fixed" onclick="go('fixed')"><i class="ti ti-pin"></i><span class="ttip">固定シフト</span></button>
     <div class="rail-sep"></div>
     <button class="rail-btn" data-pg="shift" onclick="go('shift')"><i class="ti ti-calendar"></i><span class="ttip">シフト表</span></button>
     <button class="rail-btn" data-pg="pay" onclick="go('pay')"><i class="ti ti-coin"></i><span class="ttip">給与集計</span></button>
@@ -396,6 +397,56 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
       </div>
 
       <!-- COND -->
+      <div class="pg" id="pg-fixed">
+        <div class="card">
+          <div class="card-title"><i class="ti ti-pin"></i> 固定シフト設定</div>
+          <p style="font-size:12px;color:var(--text3);margin-bottom:12px">特定のスタッフを特定の曜日・時間帯・ポジションに固定します。AI生成時に最優先で配置されます。</p>
+          <!-- 追加フォーム -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:16px">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:4px">スタッフ</div>
+              <select id="fx-staff" style="width:100%;padding:8px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit"></select>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:4px">曜日</div>
+              <select id="fx-day" style="width:100%;padding:8px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit">
+                <option value="0">月曜</option>
+                <option value="1">火曜</option>
+                <option value="2">水曜</option>
+                <option value="3">木曜</option>
+                <option value="4">金曜</option>
+                <option value="5">土曜</option>
+                <option value="6">日曜</option>
+              </select>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:4px">時間帯</div>
+              <select id="fx-band" style="width:100%;padding:8px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit">
+                <option value="lunch">昼（〜15時）</option>
+                <option value="idle">アイドル（15〜18時）</option>
+                <option value="dinner">夜（18時〜）</option>
+              </select>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:4px">ポジション</div>
+              <select id="fx-pos" style="width:100%;padding:8px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit">
+                <option value="fryer">フライヤー(F)</option>
+                <option value="conro">コンロ(C)</option>
+                <option value="dishup">ディシャップ(D)</option>
+                <option value="dishwash">洗い場(W)</option>
+                <option value="morning">朝準備</option>
+                <option value="morning_hall">朝準備（ホール）</option>
+                <option value="hall">ホール</option>
+                <option value="leader">リーダー</option>
+              </select>
+            </div>
+            <button onclick="addFixedShift()" style="padding:8px 16px;background:var(--w-green);color:#fff;border:none;border-radius:var(--radius);font-weight:700;cursor:pointer;font-size:13px;white-space:nowrap"><i class="ti ti-plus"></i> 追加</button>
+          </div>
+          <!-- 一覧 -->
+          <div id="fixed-list" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+      </div>
+
       <div class="pg" id="pg-cond">
         <div class="cond-tabs">
           <button class="ctab on" onclick="ctab('labor')">労働時間</button>
@@ -1547,6 +1598,29 @@ async function genShiftAsync(){
   hint.style.flexDirection='column';
   hint.innerHTML=`<div style="font-size:13px;font-weight:700">⏳ 最良シフトを生成中...</div>`;
 
+  // ── 固定シフトを最優先で配置 ──
+  const codeMapFx={fryer:'F',conro:'C',dishup:'D',dishwash:'W'};
+  fixedShifts.forEach(f=>{
+    const s=staff.find(x=>x.id===f.staff_id);
+    if(!s)return;
+    const isHallPos=['hall','leader','morning_hall','cashier'].includes(f.pos_key);
+    const newCode=codeMapFx[f.pos_key]||'';
+    let start='';
+    if(f.pos_key==='morning'||f.pos_key==='morning_hall'){start='9-12';}
+    else if(f.band==='lunch'){start=isHallPos?'9-14':`${newCode}11-15`;}
+    else if(f.band==='idle'){start=isHallPos?'15-18':`${newCode}15-18`;}
+    else if(f.band==='dinner'){start=isHallPos?'18-L':`${newCode}17-L`;}
+    if(!start)return;
+    dates.forEach(d=>{
+      if(getDayIdx(d)!==f.day_idx)return;
+      const dateStr=fmtD(d);
+      const onVac=(s.vacations||[]).some(v=>dateStr>=v.from&&dateStr<=(v.to||v.from));
+      if(onVac)return;
+      if(!shiftData[s.id])shiftData[s.id]={};
+      shiftData[s.id][dateStr]=start;
+    });
+  });
+
   await new Promise(r=>setTimeout(r,150));
 
   for(let trial=0;trial<TRIALS;trial++){
@@ -1558,8 +1632,11 @@ async function genShiftAsync(){
         Object.assign(trialSD[s.id],shiftData[s.id]);
       }
       dates.forEach(d=>{
-        if(targetStaff.find(ts=>ts.id===s.id)){
-          trialSD[s.id][fmtD(d)]='';
+        const dateStr=fmtD(d);
+        // 固定シフトが設定されている日はクリアしない
+        const isFixed=fixedShifts.some(f=>f.staff_id===s.id&&f.day_idx===getDayIdx(d));
+        if(targetStaff.find(ts=>ts.id===s.id)&&!isFixed){
+          trialSD[s.id][dateStr]='';
         }
       });
     });
@@ -1736,8 +1813,9 @@ function go(name){
   document.querySelectorAll('.rail-btn,[data-pg]').forEach(b=>b.classList.remove('active'));
   document.getElementById('pg-'+name).classList.add('on');
   document.querySelectorAll(`[data-pg="${name}"]`).forEach(b=>b.classList.add('active'));
-  const T={staff:'スタッフ管理',cond:'勤務条件設定',shift:'シフト表',pay:'給与・月次集計',line:'LINE通知設定',mypage:'マイページ'};
+  const T={staff:'スタッフ管理',cond:'勤務条件設定',fixed:'固定シフト設定',shift:'シフト表',pay:'給与・月次集計',line:'LINE通知設定',mypage:'マイページ'};
   if(name==='mypage')loadMyPage();
+  if(name==='fixed')renderFixedList();
   document.getElementById('tbtitle').textContent=T[name]||name;
   document.getElementById('tbacts').innerHTML=name==='staff'&&role==='manager'?'<button class="btn p" onclick="openAdd()"><i class="ti ti-plus"></i>追加</button>':'';
   if(name==='shift'){renderWkLbl();loadShift();}
@@ -2248,7 +2326,72 @@ function bindDays(cid,store){
   });
 }
 
-// ══ 初期データ（写真のシフト表から読み取り） ══
+// ══ 固定シフト ══
+let fixedShifts=[];
+const DN2=['月','火','水','木','金','土','日'];
+const BAND_LBL={lunch:'昼',idle:'アイドル',dinner:'夜'};
+const POS_LBL={fryer:'フライヤー(F)',conro:'コンロ(C)',dishup:'ディシャップ(D)',dishwash:'洗い場(W)',morning:'朝準備',morning_hall:'朝準備（ホール）',hall:'ホール',leader:'リーダー'};
+
+async function loadFixedShifts(){
+  const {data}=await sb.from('fixed_shifts').select('*');
+  fixedShifts=data||[];
+  renderFixedList();
+}
+
+function renderFixedList(){
+  // スタッフセレクトを更新
+  const sel=document.getElementById('fx-staff');
+  if(sel){
+    sel.innerHTML=staff.map(s=>`<option value="${s.id}">${s.name}（${TLBL[s.type]||s.type}）</option>`).join('');
+  }
+  // 一覧を更新
+  const list=document.getElementById('fixed-list');
+  if(!list)return;
+  if(!fixedShifts.length){
+    list.innerHTML=`<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">固定シフトはありません</div>`;
+    return;
+  }
+  list.innerHTML=fixedShifts.map(f=>{
+    const s=staff.find(x=>x.id===f.staff_id);
+    const name=s?s.name:'不明';
+    const type=s?TLBL[s.type]||s.type:'';
+    return`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-radius:var(--radius);border:1.5px solid var(--border2)">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-weight:700;font-size:13px">${name}</span>
+        <span style="font-size:11px;color:var(--text3)">${type}</span>
+        <span style="font-size:12px;background:var(--w-green-lt);color:var(--w-green-dk);padding:2px 8px;border-radius:10px;font-weight:700">${DN2[f.day_idx]}曜</span>
+        <span style="font-size:12px;background:#EEF2FF;color:#3730A3;padding:2px 8px;border-radius:10px;font-weight:700">${BAND_LBL[f.band]||f.band}</span>
+        <span style="font-size:12px;background:var(--fryer-bg);color:var(--fryer-t);padding:2px 8px;border-radius:10px;font-weight:700">${POS_LBL[f.pos_key]||f.pos_key}</span>
+      </div>
+      <button onclick="deleteFixedShift('${f.id}')" style="background:none;border:none;color:var(--w-red);cursor:pointer;font-size:18px;padding:4px"><i class="ti ti-trash"></i></button>
+    </div>`;
+  }).join('');
+}
+
+async function addFixedShift(){
+  const staff_id=document.getElementById('fx-staff').value;
+  const day_idx=+document.getElementById('fx-day').value;
+  const band=document.getElementById('fx-band').value;
+  const pos_key=document.getElementById('fx-pos').value;
+  if(!staff_id){alert('スタッフを選択してください');return;}
+  // 重複チェック
+  if(fixedShifts.some(f=>f.staff_id===staff_id&&f.day_idx===day_idx&&f.band===band)){
+    alert('同じスタッフ・曜日・時間帯の固定シフトが既に存在します');return;
+  }
+  const {data,error}=await sb.from('fixed_shifts').insert({staff_id,day_idx,band,pos_key}).select().single();
+  if(error){alert('保存失敗: '+error.message);return;}
+  fixedShifts.push(data);
+  renderFixedList();
+  toast('固定シフトを追加しました');
+}
+
+async function deleteFixedShift(id){
+  if(!confirm('この固定シフトを削除しますか？'))return;
+  await sb.from('fixed_shifts').delete().eq('id',id);
+  fixedShifts=fixedShifts.filter(f=>f.id!==id);
+  renderFixedList();
+  toast('削除しました');
+}
 const SEED_STAFF = [
   // ── 社員 ──
   {name:'白石',        type:'seiki',  skills:[{key:'fryer',level:'normal'},{key:'conro',level:'normal'},{key:'dishup',level:'normal'},{key:'dishwash',level:'normal'},{key:'sobaneri',level:'normal'},{key:'cashier',level:'normal'},{key:'hall',level:'normal'},{key:'leader',level:'normal'}], avail:[0,1,2,3,4,5,6], pref:'any'},
@@ -2475,6 +2618,7 @@ async function init(){
   await loadCond();// 条件設定を読み込む
   await seedInitialData();
   await loadStaff();
+  await loadFixedShifts();
   if(role==='staff'){go('mypage');bindDays('my-days',null);bindDays('my-day-also',null);}
   else bindDays('my-days',null);
 }
