@@ -685,6 +685,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     </div>
     <div class="mf" id="wage-field"><label>時給（空欄で設定の時給を使用）</label><input type="number" id="f-wage" placeholder="例: 980" oninput="colorField(this)"></div>
     <div class="mf" id="monthly-field" style="display:none"><label>月給（円）</label><input type="number" id="f-monthly" placeholder="例: 210000" oninput="colorField(this)"></div>
+    <div class="mf" id="minh-field" style="display:none"><label>週の最低労働時間（社員・セカンド社員）</label><input type="number" id="f-minh" placeholder="例: 30" oninput="colorField(this)" style="width:100%;padding:11px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit"></div>
     <div class="mf"><label>週の最大希望時間（空欄で区分の上限）</label><input type="number" id="f-maxh" placeholder="例: 20" oninput="colorField(this)" style="width:100%;padding:11px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit"></div>
     <div class="mf"><label>週の最大出勤日数（空欄で制限なし・社員/社保付きは最低保証）</label><input type="number" id="f-maxd" placeholder="例: 5" min="1" max="7" oninput="colorField(this);calcMaxH(this)" style="width:100%;padding:11px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:15px;font-family:inherit"></div>
     <div class="sec-div">担当エリア</div>
@@ -1505,12 +1506,14 @@ async function genShiftAsync(){
       });
     });
 
-    // 社員シフト
-    sorted2.filter(s=>s.type==='seiki').forEach(s=>{
+    // 社員・セカンド社員シフト
+    sorted2.filter(s=>s.type==='seiki'||s.type==='junseiki').forEach(s=>{
       const targetDays=s.min_days||5;
       const workedDays=dates.filter(d=>sd[s.id]?.[fmtD(d)]&&sd[s.id][fmtD(d)]!=='').length;
-      if(workedDays>=targetDays)return;
-      const needed=targetDays-workedDays;
+      const workedH=wh[s.id]||0;
+      const minH=s.min_h||0;
+      if(workedDays>=targetDays&&(!minH||workedH>=minH))return;
+      const needed=Math.max(targetDays-workedDays,0);
       const lastH=parseLastH();
       const mh=mxH(s);
       const sk=getSkillKeys(s);
@@ -1519,31 +1522,42 @@ async function genShiftAsync(){
       const isHall=!kitSk.length&&floSk.length;
       const mainPos=kitSk.find(k=>{const lv=getSkillLevel(s,k);return lv==='normal'||lv==='hojyo';})||kitSk[0]||floSk[0];
       const mc=mainPos?codeMap2[mainPos]||'':'';
+
+      // 最低労働時間を考慮したパターン選択
+      const remaining_days=needed||1;
+      const minHPerDay=minH>0&&workedDays<targetDays?Math.ceil((minH-workedH)/remaining_days):0;
+
       const patterns=[
         {start:'9-12',h:3},{start:'9-15',h:6},{start:'17-L',h:lastH-17},
         {start:'9-L',h:lastH-9},{start:'9-18',h:9},{start:'15-L',h:lastH-15},
       ];
       let filled=0;
       for(const d of shuffle(dates)){
-        if(filled>=needed)break;
+        if(filled>=needed&&(!minH||(wh[s.id]||0)>=minH))break;
         const dateStr=fmtD(d);
         if(sd[s.id][dateStr]!=='')continue;
         const dayIdx=getDayIdx(d);
         if(!(s.avail||[0,1,2,3,4,5,6]).includes(dayIdx))continue;
+        if((s.fixed_days_off||[]).includes(dayIdx))continue;
         const onVac=(s.vacations||[]).some(v=>dateStr>=v.from&&dateStr<=(v.to||v.from));
         if(onVac)continue;
-        const remaining=mh-wh[s.id];
-        const daysLeft=needed-filled;
-        if(remaining<=0)break;
-        const avgH=remaining/daysLeft;
-        const valid=patterns.filter(p=>p.h<=remaining&&(daysLeft===1||remaining-p.h>=(daysLeft-1)*3));
-        if(!valid.length)break;
-        const near=valid.filter(p=>Math.abs(p.h-avgH)<=3);
-        const chosen=(near.length>0?near:valid)[Math.floor(Math.random()*(near.length>0?near:valid).length)];
-        sd[s.id][dateStr]=chosen.start;
-        wh[s.id]+=chosen.h;
+        const rem=mh-(wh[s.id]||0);
+        const daysLeft=Math.max(needed-filled,1);
+        if(rem<=0)break;
+        const avgH=minH>0?Math.max(rem/daysLeft,(minH-(wh[s.id]||0))/daysLeft):rem/daysLeft;
+        const valid=patterns.filter(p=>p.h<=rem&&(daysLeft===1||rem-p.h>=(daysLeft-1)*3)&&p.h>=Math.max(minHPerDay-1,3));
+        const fallback=patterns.filter(p=>p.h<=rem);
+        const pool=valid.length>0?valid:fallback;
+        if(!pool.length)break;
+        const near=pool.filter(p=>Math.abs(p.h-avgH)<=3);
+        const chosen=(near.length>0?near:pool)[Math.floor(Math.random()*(near.length>0?near:pool).length)];
+        sd[s.id][dateStr]=chosen.start;// ポジションコードなし（その他）
+        wh[s.id]=(wh[s.id]||0)+chosen.h;
         filled++;
       }
+
+      // 不足ポジションのみコードを付与（振り替えで対応）
+      // → 振り替えロジック側で社員を優先するため、ここでは何もしない
     });
 
     // 社保付きシフト
@@ -2158,6 +2172,8 @@ function onTypeChange(type){
   const isSei=type==='seiki'||type==='junseiki';
   document.getElementById('wage-field').style.display=isSei?'none':'block';
   document.getElementById('monthly-field').style.display=isSei?'block':'none';
+  const minhField=document.getElementById('minh-field');
+  if(minhField)minhField.style.display=isSei?'block':'none';
   const fixedSec=document.getElementById('seiki-fixed-section');
   if(fixedSec)fixedSec.style.display=isSei?'block':'none';
 }
@@ -2170,6 +2186,7 @@ function openAdd(){
   document.getElementById('f-monthly').value='';
   document.getElementById('f-maxh').value='';
   document.getElementById('f-maxd').value='';
+  if(document.getElementById('f-minh'))document.getElementById('f-minh').value='';
   document.getElementById('f-password').value='';
   clearLevelBtns();
   document.querySelectorAll('#mod-days .db').forEach(b=>b.classList.add('on'));
@@ -2199,6 +2216,7 @@ function editStaff(id){
   document.getElementById('f-monthly').value=t==='seiki'?(s.wage||''):'';
   document.getElementById('f-maxh').value=s.max_h||'';
   document.getElementById('f-maxd').value=s.max_days||s.min_days||'';
+  if(document.getElementById('f-minh'))document.getElementById('f-minh').value=s.min_h||'';
   document.getElementById('f-password').value=s.password||'';
   onTypeChange(t);
   restoreLevelBtns(s.skills);
@@ -2272,6 +2290,7 @@ async function saveStaff(){
   const isSei=type==='seiki';
   const wage=isSei?(+document.getElementById('f-monthly').value||null):(+document.getElementById('f-wage').value||null);
   const max_h=+document.getElementById('f-maxh').value||null;
+  const min_h=(type==='seiki'||type==='junseiki')?(+document.getElementById('f-minh')?.value||null):null;
   const max_days=+document.getElementById('f-maxd').value||null;
   const min_days=max_days;// 最大出勤日数=最低出勤日数（社員・社保付きの場合）
   const password=document.getElementById('f-password').value.trim()||null;
@@ -2287,7 +2306,7 @@ async function saveStaff(){
   const fixed_days_off=isSeiType
     ?[...document.querySelectorAll('#mod-fixed-off .db.on')].map(b=>+b.dataset.d)
     :[];
-  const obj={name,type,max_h,max_days,min_days,wage,password,skills:skillsArr,abilities,avail,pref,vacations,day_also,fixed_days_off};
+  const obj={name,type,max_h,min_h,max_days,min_days,wage,password,skills:skillsArr,abilities,avail,pref,vacations,day_also,fixed_days_off};
   const eid=document.getElementById('eid').value;
   try{
     await saveStaffDB(obj,eid||null);
