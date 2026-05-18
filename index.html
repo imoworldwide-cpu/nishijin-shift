@@ -1242,6 +1242,11 @@ function updateCostBar(c,h,p){
 // AI AUTO GEN
 function genShift(){
   if(!staff.length){alert('スタッフを追加してください');return;}
+  genShiftAsync();
+}
+
+async function genShiftAsync(){
+  if(!staff.length){alert('スタッフを追加してください');return;}
 
   const isAll=curSec==='all';
   const targetStaff=isAll?staff:filterSt();
@@ -1542,6 +1547,8 @@ function genShift(){
   hint.innerHTML=`<div style="font-size:13px;font-weight:700">⏳ 最良シフトを探しています... (0/${TRIALS})</div>`;
 
   for(let trial=0;trial<TRIALS;trial++){
+    // UIを更新するために少し待つ
+    await new Promise(r=>setTimeout(r,0));
     // 各試行用のshiftDataとwkHをコピー
     const trialSD={};
     staff.forEach(s=>{
