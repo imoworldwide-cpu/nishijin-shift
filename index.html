@@ -1261,6 +1261,13 @@ async function genShiftAsync(){
   const dates=getWkDates();
 
   // 不足件数をカウントする関数
+  // 必要人数取得（countShortagesとrunOnceで共有）
+  function getRequired(posKey,band,dayIdx){
+    const def=KIT_DEF[posKey]||FLO_DEF[posKey];
+    if(!def||!def[band])return 0;
+    return def[band][dayIdx]||0;
+  }
+
   function countShortages(dc, checkPos, allowedBands){
     let count=0;
     const seen=new Set();
@@ -1293,12 +1300,6 @@ async function genShiftAsync(){
       });
       dayCount[fmtD(d)]['morning']={lunch:0,idle:0,dinner:0};
     });
-
-    function getRequired(posKey,band,dayIdx){
-      const def=KIT_DEF[posKey]||FLO_DEF[posKey];
-      if(!def||!def[band])return 0;
-      return def[band][dayIdx]||0;
-    }
 
     const allowedBands=new Set(['lunch','idle','dinner']);
     if(curSec==='kitchen-day'||curSec==='hall-day'){allowedBands.clear();allowedBands.add('lunch');}
