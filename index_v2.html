@@ -1533,7 +1533,7 @@ async function genShiftAsync(){
   }
 
   // ── 10回試行して最良を選択 ──
-  const TRIALS=10;
+  const TRIALS=5;
   let bestSD=null, bestWH=null, bestShortages=Infinity;
 
   const hint=document.getElementById('s-hint');
@@ -1544,7 +1544,7 @@ async function genShiftAsync(){
 
   for(let trial=0;trial<TRIALS;trial++){
     hint.innerHTML=`<div style="font-size:13px;font-weight:700">⏳ 最良シフトを探しています... (${trial+1}/${TRIALS}) 最小不足: ${bestShortages===Infinity?'—':bestShortages}件</div>`;
-    await new Promise(r=>setTimeout(r,50));
+    await new Promise(r=>setTimeout(r,100));
     // 各試行用のshiftDataとwkHをコピー
     const trialSD={};
     staff.forEach(s=>{
