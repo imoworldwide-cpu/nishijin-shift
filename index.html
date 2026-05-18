@@ -1444,6 +1444,7 @@ async function genShiftAsync(){
 
       const lastH2=parseLastH();
       const isSei2=s.type==='seiki';
+      const isJun=s.type==='junseiki';
       let start='',h=0;
       if(isSei2){
         start=isHall?'9-L':`${codeMap2[posKey]||''}9-L`;h=lastH2-9;
@@ -1451,6 +1452,27 @@ async function genShiftAsync(){
         start='9-12';h=3;
       } else if(effectivePosKey==='morning_hall'&&band==='lunch'){
         start='9-12';h=3;
+      } else if(isJun){
+        // セカンド社員は最低労働時間を考慮して長めのシフトを選ぶ
+        const minH=s.min_h||0;
+        const workedH=wh[s.id]||0;
+        const workedDays=dates.filter(d2=>sd[s.id]?.[fmtD(d2)]&&sd[s.id][fmtD(d2)]!=='').length;
+        const targetDays=s.min_days||5;
+        const daysLeft=Math.max(targetDays-workedDays,1);
+        const minHLeft=Math.max(minH-workedH,0);
+        const avgHNeeded=minHLeft/daysLeft;
+        // 必要な平均時間に応じてシフトを選択
+        if(band==='lunch'){
+          const morningFull=(dayCount[dateStr]['morning']?.lunch||0)>=(getRequired('morning','lunch',dayIdx)||0)&&getRequired('morning','lunch',dayIdx)>0;
+          if(avgHNeeded>8){start=isHall?'9-L':`${codeMap2[posKey]||''}9-L`;h=lastH2-9;}
+          else if(avgHNeeded>6){start=isHall?'9-18':`${codeMap2[posKey]||''}9-18`;h=9;}
+          else{start=isHall?'9-14':`${codeMap2[posKey]||''}${morningFull?'11':'9'}-15`;h=isHall?5:(morningFull?4:6);}
+        } else if(band==='idle'){
+          if(avgHNeeded>6){start=isHall?'15-L':`${codeMap2[posKey]||''}15-L`;h=lastH2-15;}
+          else{start=isHall?'15-18':`${codeMap2[posKey]||''}15-18`;h=3;}
+        } else if(band==='dinner'){
+          start=isHall?'18-L':`${codeMap2[posKey]||''}17-L`;h=5.5;
+        }
       } else if(band==='lunch'){
         const morningFull=(dayCount[dateStr]['morning']?.lunch||0)>=(getRequired('morning','lunch',dayIdx)||0)&&getRequired('morning','lunch',dayIdx)>0;
         start=isHall?'9-14':`${codeMap2[posKey]||''}${morningFull?'11':'9'}-15`;
