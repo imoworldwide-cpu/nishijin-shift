@@ -779,23 +779,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
             <th style="padding:6px;text-align:center;border:1px solid var(--border2)">シフト時間<br><span style="font-weight:400;color:var(--text3)">例: 9-L / 15-L / 9-18</span></th>
             <th style="padding:6px;text-align:center;border:1px solid var(--border2)">ポジション<br><span style="font-weight:400;color:var(--text3)">空欄=その他</span></th>
           </tr>
-          ${['月','火','水','木','金','土','日'].map((d,i)=>`
-          <tr>
-            <td style="padding:6px;text-align:center;border:1px solid var(--border2);font-weight:700">${d}</td>
-            <td style="padding:4px;border:1px solid var(--border2)"><input type="text" id="fx-time-${i}" placeholder="空欄=固定なし" style="width:100%;padding:6px;border:1px solid var(--border2);border-radius:4px;font-size:12px;font-family:inherit;background:var(--surface);color:var(--text)"></td>
-            <td style="padding:4px;border:1px solid var(--border2)">
-              <select id="fx-pos-${i}" style="width:100%;padding:6px;border:1px solid var(--border2);border-radius:4px;font-size:12px;font-family:inherit;background:var(--surface);color:var(--text)">
-                <option value="">その他</option>
-                <option value="fryer">フライヤー(F)</option>
-                <option value="conro">コンロ(C)</option>
-                <option value="dishup">ディシャップ(D)</option>
-                <option value="dishwash">洗い場(W)</option>
-                <option value="morning">朝準備</option>
-                <option value="hall">ホール</option>
-                <option value="leader">リーダー</option>
-              </select>
-            </td>
-          </tr>`).join('')}
+          <tbody id="fx-rows"></tbody>
         </table>
       </div>
     </div>
@@ -2168,6 +2152,33 @@ function colorFields(){
     const el=document.getElementById(id);if(el)colorField(el);
   });
 }
+function initFxRows(){
+  const tbody=document.getElementById('fx-rows');
+  if(!tbody)return;
+  const days=['月','火','水','木','金','土','日'];
+  const posOpts=[
+    {value:'',label:'その他'},
+    {value:'fryer',label:'フライヤー(F)'},
+    {value:'conro',label:'コンロ(C)'},
+    {value:'dishup',label:'ディシャップ(D)'},
+    {value:'dishwash',label:'洗い場(W)'},
+    {value:'morning',label:'朝準備'},
+    {value:'hall',label:'ホール'},
+    {value:'leader',label:'リーダー'},
+  ];
+  tbody.innerHTML=days.map((d,i)=>`
+    <tr>
+      <td style="padding:6px;text-align:center;border:1px solid var(--border2);font-weight:700">${d}</td>
+      <td style="padding:4px;border:1px solid var(--border2)">
+        <input type="text" id="fx-time-${i}" placeholder="空欄=固定なし" style="width:100%;padding:6px;border:1px solid var(--border2);border-radius:4px;font-size:12px;font-family:inherit;background:var(--surface);color:var(--text)">
+      </td>
+      <td style="padding:4px;border:1px solid var(--border2)">
+        <select id="fx-pos-${i}" style="width:100%;padding:6px;border:1px solid var(--border2);border-radius:4px;font-size:12px;font-family:inherit;background:var(--surface);color:var(--text)">
+          ${posOpts.map(o=>`<option value="${o.value}">${o.label}</option>`).join('')}
+        </select>
+      </td>
+    </tr>`).join('');
+}
 function onTypeChange(type){
   const isSei=type==='seiki'||type==='junseiki';
   document.getElementById('wage-field').style.display=isSei?'none':'block';
@@ -2176,6 +2187,7 @@ function onTypeChange(type){
   if(minhField)minhField.style.display=isSei?'block':'none';
   const fixedSec=document.getElementById('seiki-fixed-section');
   if(fixedSec)fixedSec.style.display=isSei?'block':'none';
+  if(isSei)initFxRows();
 }
 function openAdd(){
   document.getElementById('mod-title').textContent='スタッフ追加';
