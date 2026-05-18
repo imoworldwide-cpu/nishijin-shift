@@ -1490,34 +1490,23 @@ async function genShiftAsync(){
       });
     });
 
-    // 社員・セカンド社員シフト
-    sorted2.filter(s=>s.type==='seiki'||s.type==='junseiki').forEach(s=>{
+    // 社員：出勤日数のみ管理（時間は問わない・その他扱い）
+    sorted2.filter(s=>s.type==='seiki').forEach(s=>{
       const targetDays=s.min_days||5;
       const workedDays=dates.filter(d=>sd[s.id]?.[fmtD(d)]&&sd[s.id][fmtD(d)]!=='').length;
-      const workedH=wh[s.id]||0;
-      const minH=s.min_h||0;
-      if(workedDays>=targetDays&&(!minH||workedH>=minH))return;
-      const needed=Math.max(targetDays-workedDays,0);
+      if(workedDays>=targetDays)return;
+      const needed=targetDays-workedDays;
       const lastH=parseLastH();
       const mh=mxH(s);
-      const sk=getSkillKeys(s);
-      const kitSk=sk.filter(k=>KIT_KEYS.includes(k)&&k!=='morning');
-      const floSk=sk.filter(k=>['cashier','hall'].includes(k));
-      const isHall=!kitSk.length&&floSk.length;
-      const mainPos=kitSk.find(k=>{const lv=getSkillLevel(s,k);return lv==='normal'||lv==='hojyo';})||kitSk[0]||floSk[0];
-      const mc=mainPos?codeMap2[mainPos]||'':'';
-
-      // 最低労働時間を考慮したパターン選択
-      const remaining_days=needed||1;
-      const minHPerDay=minH>0&&workedDays<targetDays?Math.ceil((minH-workedH)/remaining_days):0;
-
+      // 現在の週労働時間を再計算
+      wh[s.id]=dates.reduce((a,d)=>a+parseH(sd[s.id]?.[fmtD(d)]||''),0);
       const patterns=[
-        {start:'9-12',h:3},{start:'9-15',h:6},{start:'17-L',h:lastH-17},
-        {start:'9-L',h:lastH-9},{start:'9-18',h:9},{start:'15-L',h:lastH-15},
+        {start:'9-L',h:lastH-9},{start:'15-L',h:lastH-15},
+        {start:'9-18',h:9},{start:'9-15',h:6},
       ];
       let filled=0;
       for(const d of shuffle(dates)){
-        if(filled>=needed&&(!minH||(wh[s.id]||0)>=minH))break;
+        if(filled>=needed)break;
         const dateStr=fmtD(d);
         if(sd[s.id][dateStr]!=='')continue;
         const dayIdx=getDayIdx(d);
@@ -1525,23 +1514,59 @@ async function genShiftAsync(){
         if((s.fixed_days_off||[]).includes(dayIdx))continue;
         const onVac=(s.vacations||[]).some(v=>dateStr>=v.from&&dateStr<=(v.to||v.from));
         if(onVac)continue;
-        const rem=mh-(wh[s.id]||0);
-        const daysLeft=Math.max(needed-filled,1);
+        const rem=mh-wh[s.id];
         if(rem<=0)break;
-        const avgH=minH>0?Math.max(rem/daysLeft,(minH-(wh[s.id]||0))/daysLeft):rem/daysLeft;
-        const valid=patterns.filter(p=>p.h<=rem&&(daysLeft===1||rem-p.h>=(daysLeft-1)*3)&&p.h>=Math.max(minHPerDay-1,3));
-        const fallback=patterns.filter(p=>p.h<=rem);
-        const pool=valid.length>0?valid:fallback;
-        if(!pool.length)break;
-        const near=pool.filter(p=>Math.abs(p.h-avgH)<=3);
-        const chosen=(near.length>0?near:pool)[Math.floor(Math.random()*(near.length>0?near:pool).length)];
-        sd[s.id][dateStr]=chosen.start;// ポジションコードなし（その他）
-        wh[s.id]=(wh[s.id]||0)+chosen.h;
+        const daysLeft=needed-filled;
+        const avgH=rem/daysLeft;
+        const valid=patterns.filter(p=>p.h<=rem);
+        if(!valid.length)break;
+        const near=valid.filter(p=>Math.abs(p.h-avgH)<=3);
+        const chosen=(near.length>0?near:valid)[Math.floor(Math.random()*(near.length>0?near:valid).length)];
+        sd[s.id][dateStr]=chosen.start;
+        wh[s.id]+=chosen.h;
         filled++;
       }
+    });
 
-      // 不足ポジションのみコードを付与（振り替えで対応）
-      // → 振り替えロジック側で社員を優先するため、ここでは何もしない
+    // セカンド社員：最低労働時間を守りながらその他要因として配置
+    sorted2.filter(s=>s.type==='junseiki').forEach(s=>{
+      const targetDays=s.min_days||5;
+      const workedDays=dates.filter(d=>sd[s.id]?.[fmtD(d)]&&sd[s.id][fmtD(d)]!=='').length;
+      // 現在の週労働時間を再計算
+      wh[s.id]=dates.reduce((a,d)=>a+parseH(sd[s.id]?.[fmtD(d)]||''),0);
+      const workedH=wh[s.id];
+      const minH=s.min_h||0;
+      if(workedDays>=targetDays&&(!minH||workedH>=minH))return;
+      const needed=Math.max(targetDays-workedDays,0);
+      const lastH=parseLastH();
+      const mh=mxH(s);
+      const patterns=[
+        {start:'9-15',h:6},{start:'17-L',h:lastH-17},
+        {start:'9-L',h:lastH-9},{start:'9-18',h:9},{start:'15-L',h:lastH-15},
+      ];
+      let filled=0;
+      for(const d of shuffle(dates)){
+        if(filled>=needed&&(!minH||wh[s.id]>=minH))break;
+        const dateStr=fmtD(d);
+        if(sd[s.id][dateStr]!=='')continue;
+        const dayIdx=getDayIdx(d);
+        if(!(s.avail||[0,1,2,3,4,5,6]).includes(dayIdx))continue;
+        if((s.fixed_days_off||[]).includes(dayIdx))continue;
+        const onVac=(s.vacations||[]).some(v=>dateStr>=v.from&&dateStr<=(v.to||v.from));
+        if(onVac)continue;
+        const rem=mh-wh[s.id];
+        if(rem<=0)break;
+        const daysLeft=Math.max(needed-filled,1);
+        const minHLeft=Math.max(minH-wh[s.id],0);
+        const avgH=Math.max(rem/daysLeft,minHLeft/Math.max(daysLeft,1));
+        const valid=patterns.filter(p=>p.h<=rem);
+        if(!valid.length)break;
+        const near=valid.filter(p=>Math.abs(p.h-avgH)<=3);
+        const chosen=(near.length>0?near:valid)[Math.floor(Math.random()*(near.length>0?near:valid).length)];
+        sd[s.id][dateStr]=chosen.start;
+        wh[s.id]+=chosen.h;
+        filled++;
+      }
     });
 
     // 社保付きシフト
